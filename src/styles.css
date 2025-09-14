@@ -1,2 +1,125 @@
-body{margin:0;padding:0}
-#game{display:block;margin:16px auto;border:2px solid #0f0;background:#000}
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+:root { --pixel-font: 'Press Start 2P', 'Courier New', monospace; }
+:root{
+	--bg: #04120a;
+	--green: #00ff6a;
+	--accent-orange: #ff7a10;
+	--neon-glow: 0 0 10px rgba(0,255,106,0.85), 0 0 28px rgba(0,255,106,0.45), 0 0 60px rgba(0,255,106,0.2);
+	--neon-strong: 0 0 16px rgba(0,255,106,1), 0 0 48px rgba(0,255,106,0.5);
+}
+
+@font-face{
+	font-family: 'ArcadePixel';
+	src: local('ArcadePixel'), url('./assets/pixel-font.woff2') format('woff2');
+	font-weight: normal;
+	font-style: normal;
+	font-display: swap;
+}
+
+:root{ --pixel-font: 'ArcadePixel', 'Courier New', monospace }
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+	font-family: "Courier New", Courier, monospace;
+	background: radial-gradient(ellipse at center, rgba(6,20,8,0.6) 0%, rgba(3,8,4,0.95) 60%), var(--bg);
+	color: #9fdc9f;
+	display:flex;
+	align-items:center;
+	justify-content:center;
+	padding:32px;
+}
+
+#ui{width:1000px; max-width:95%}
+
+.title{text-align:center;margin-bottom:18px}
+.title h1{
+	font-size:64px;
+	letter-spacing:6px;
+	color:var(--accent-orange);
+	text-shadow: 0 0 12px rgba(255,120,16,0.95), 0 0 36px rgba(255,120,16,0.4);
+}
+.title .neon{
+	color:var(--green);
+	text-shadow: var(--neon-strong);
+	margin-left:10px;
+}
+
+.stamp{
+	position:absolute;
+	right:48px;
+	top:88px;
+	background:rgba(0,0,0,0.26);
+	border:3px solid rgba(255,215,70,0.5);
+	color:#ffd700;
+	font-size:15px;
+	font-weight:800;
+	padding:8px 14px;
+	transform: rotate(8deg);
+	box-shadow: 0 0 28px rgba(255,215,70,0.28), 0 0 56px rgba(255,215,70,0.1);
+}
+
+.main-nav{
+	position:relative;
+	margin:6px 0 12px 0;
+	display:flex;
+	justify-content:center;
+	gap:12px;
+	z-index:10;
+}
+.main-nav button{
+	color:#9fdc9f;
+	background:transparent;
+	border:1px solid rgba(0,255,106,0.06);
+	padding:8px 12px;
+	border-radius:8px;
+	cursor:pointer;
+	font-family:var(--pixel-font);
+}
+.main-nav button:hover{
+	background:rgba(0,255,106,0.06);
+	color:var(--green);
+	transform:translateY(-2px);
+}
+
+.scores{display:flex;align-items:center;justify-content:center;gap:40px;margin-top:8px}
+.scores .player{font-size:14px;color:#c5ffc8;text-align:center;font-family:var(--pixel-font)}
+.scores #score1,#score2{display:block;font-size:44px;color:var(--green);text-shadow:var(--neon-glow);margin-top:6px;font-family:var(--pixel-font)}
+
+.arena{display:flex;justify-content:center;margin:24px 0;position:relative}
+.arena canvas{
+	background:#000;
+	border:8px solid rgba(0,255,106,0.98);
+	box-shadow: 0 0 40px rgba(0,255,106,0.85), inset 0 0 30px rgba(0,255,106,0.18);
+	image-rendering: pixelated;
+	display:block;
+}
+
+.arena::before{
+	content:'';
+	position:absolute;left:0;right:0;top:0;bottom:0;
+	background-image: linear-gradient(rgba(0,0,0,0.06) 50%, rgba(0,0,0,0.02) 50%);
+	background-size: 100% 4px;
+	pointer-events:none;mix-blend-mode: overlay;z-index:2;
+}
+.arena::after{
+	content:'';
+	position:absolute;left:0;right:0;top:0;bottom:0;
+	background: radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.5) 100%);
+	pointer-events:none;z-index:3;mix-blend-mode:multiply;
+}
+
+.paddle-seg{width:8px;border-radius:2px;background:linear-gradient(180deg,#08ff7a 20%, rgba(8,255,122,0.1) 20%)}
+
+.footer-hint{ text-align:center;margin-top:14px;color:var(--green);font-family:var(--pixel-font)}
+.footer-hint .blink{display:inline-block;padding:6px 14px;border:2px solid rgba(0,255,106,0.22);box-shadow:0 0 14px rgba(0,255,106,0.9), var(--neon-glow);animation: glow 1.2s infinite}
+@keyframes glow{0%{filter:brightness(0.8)}50%{filter:brightness(1.1)}100%{filter:brightness(0.9)}}
+
+.controls{display:flex;justify-content:center;gap:18px;margin-top:18px; color:#ffd}
+.kbd{border:2px solid rgba(255,210,70,0.12);padding:8px 12px;color:#ffd700;background:rgba(0,0,0,0.18);box-shadow: 0 0 12px rgba(255,215,0,0.06);font-size:14px;text-align:center}
+
+@media (max-width:900px){
+	.title h1{font-size:36px}
+	.arena canvas{width:100%;height:auto}
+}
