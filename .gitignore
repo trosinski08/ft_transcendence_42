@@ -14,3 +14,7 @@ pnpm-debug.log*
 .vscode/
 .DS_Store
 SUBJECT*
+
+# SSL certs (local only)
+nginx/ssl/server.key
+nginx/ssl/server.crt
