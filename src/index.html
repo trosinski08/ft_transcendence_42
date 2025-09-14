@@ -1,17 +1,18 @@
-<html lang=pl>
+<!DOCTYPE html>
+<html lang="pl">
   <head>
-  <meta charset=utf-8 />
-  <meta name=viewport content=width=device-width,initial-scale=1 />
-  <title>Atari Pong</title>
-</head>
-<body>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Atari Pong</title>
+  </head>
+  <body>
   <div id=ui>
     <header class=title>
       <div class=main-nav>
-        <button data-href=/>Home</button>
-        <button data-href=/register>Register</button>
-        <button data-href=/tournament>Tournament</button>
-        <button data-href=/game>Play</button>
+  <button data-href="/">Home</button>
+  <button data-href="/register">Register</button>
+  <button data-href="/tournament">Tournament</button>
+  <button data-href="/game">Play</button>
       </div>
       <h1>ATARI <span class=neon>PONG</span></h1>
       <div class=scores>
@@ -23,7 +24,7 @@
     </header>
 
     <main>
-      <section id=register-page class=page style=display:none>
+  <section id="register-page" class="page" style="display:none">
         <h2>Register for tournament</h2>
         <form id=register-form>
           <label for=alias>Alias:</label>
@@ -36,7 +37,7 @@
         </div>
       </section>
 
-      <section id=tournament-page class=page style=display:none>
+  <section id="tournament-page" class="page" style="display:none">
         <h2>Tournament</h2>
         <div>
           <button id=start-tournament>Start Next Match</button>
@@ -52,21 +53,21 @@
         </div>
       </section>
 
-      <section id=game-page class=page style=display:none>
+  <section id="game-page" class="page" style="display:none">
         <div class=arena>
-          <canvas id=game width=860 height=420></canvas>
+          <canvas id="game" width="860" height="420"></canvas>
         </div>
         <div class=controls>
-          <div class=kbd>W / S<br/><small id=p1-alias>Player 1</small></div>
-          <div class=kbd>↑ / ↓<br/><small id=p2-alias>Player 2</small></div>
+          <div class="kbd">W / S<br/><small id="p1-alias">Player 1</small></div>
+          <div class="kbd">↑ / ↓<br/><small id="p2-alias">Player 2</small></div>
           <div class=kbd>SPACE<br/><small>Start / Pause</small></div>
         </div>
       </section>
 
-      <section id=home-page class=page>
+  <section id="home-page" class="page">
         <p>Welcome to Atari Pong. Use the navigation to register players and start a tournament.</p>
       </section>
     </main>
   </div>
-</body>
+  </body>
 </html>
