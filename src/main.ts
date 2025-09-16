@@ -93,10 +93,12 @@ function step() {
     // Scoring
     if (ball.x < -ball.r) {
       score2 += 1; updateScoreUI();
+      afterScoreUpdateObserver();
       if (score2 >= WIN_SCORE) { winner = (document.getElementById('p2-alias')?.textContent || 'Player 2'); }
       resetBall(1);
     } else if (ball.x > W + ball.r) {
       score1 += 1; updateScoreUI();
+      afterScoreUpdateObserver();
       if (score1 >= WIN_SCORE) { winner = (document.getElementById('p1-alias')?.textContent || 'Player 1'); }
       resetBall(-1);
     }
@@ -148,6 +150,8 @@ const STORAGE_KEY = 'ft_transcendence_players_v1';
 const QUEUE_KEY = 'ft_transcendence_queue_v1';
 const players: string[] = [];
 const queue: string[] = [];
+let schedule: Array<{ p1: string; p2: string; status: 'pending' | 'playing' | 'done'; winner?: string }> = [];
+let currentMatchIndex: number | null = null;
 
 function navigateTo(path: string) {
   [pages.home, pages.register, pages.tournament, pages.game].forEach((p) => {
@@ -213,6 +217,82 @@ function updateQueue() {
   });
 }
 
+function buildSchedule() {
+  schedule = [];
+  // Simple round-robin pairing or sequential pairing if even count
+  const playersCopy = [...players];
+  if (playersCopy.length < 2) return;
+  // Pair sequentially for MVP
+  for (let i = 0; i < playersCopy.length - 1; i += 2) {
+    if (playersCopy[i + 1]) schedule.push({ p1: playersCopy[i], p2: playersCopy[i + 1], status: 'pending' });
+  }
+  renderSchedule();
+  renderBracket();
+}
+
+function renderSchedule() {
+  const list = document.getElementById('schedule-list');
+  if (!list) return;
+  list.innerHTML = '';
+  schedule.forEach((m, idx) => {
+    const li = document.createElement('li');
+    const label = `${m.p1} vs ${m.p2}`;
+    let statusChar = '';
+    if (m.status === 'pending') statusChar = '⏳';
+    else if (m.status === 'playing') statusChar = '▶';
+    else if (m.status === 'done') statusChar = `✔${m.winner ? ' ' + m.winner : ''}`;
+    li.textContent = `${label} ${statusChar}`;
+    if (idx === currentMatchIndex) li.style.fontWeight = 'bold';
+    list.appendChild(li);
+  });
+}
+
+function renderBracket() {
+  const container = document.getElementById('bracket');
+  if (!container) return;
+  container.innerHTML = '';
+  // MVP: simple vertical list; future: tree layout
+  schedule.forEach((m, idx) => {
+    const div = document.createElement('div');
+    div.style.marginBottom = '6px';
+    div.textContent = `Match ${idx + 1}: ${m.p1} vs ${m.p2} ${m.status === 'done' ? '→ ' + (m.winner || '') : ''}`;
+    container.appendChild(div);
+  });
+}
+
+function startNextScheduledMatch() {
+  if (!schedule.length) return;
+  // Find next pending
+  const nextIdx = schedule.findIndex(m => m.status === 'pending');
+  if (nextIdx === -1) return; // none left
+  currentMatchIndex = nextIdx;
+  schedule[nextIdx].status = 'playing';
+  const { p1, p2 } = schedule[nextIdx];
+  const next = document.getElementById('next-match');
+  if (next) next.textContent = `${p1} vs ${p2}`;
+  const p1a = document.getElementById('p1-alias');
+  const p2a = document.getElementById('p2-alias');
+  if (p1a) p1a.textContent = p1;
+  if (p2a) p2a.textContent = p2;
+  // Reset current game state
+  resetMatch();
+  renderSchedule();
+  renderBracket();
+  navigateTo('/game');
+}
+
+// Hook into winner assignment (poll each frame)
+function afterScoreUpdateObserver() {
+  if (winner && currentMatchIndex != null && schedule[currentMatchIndex]) {
+    if (schedule[currentMatchIndex].status !== 'done') {
+      schedule[currentMatchIndex].status = 'done';
+      schedule[currentMatchIndex].winner = winner;
+      renderSchedule();
+      renderBracket();
+    }
+  }
+}
+
 const registerForm = document.getElementById('register-form') as HTMLFormElement | null;
 if (registerForm) {
   registerForm.addEventListener('submit', (ev) => {
@@ -223,6 +303,7 @@ if (registerForm) {
       if (!queue.includes(alias)) queue.push(alias);
       updatePlayers();
       updateQueue();
+      buildSchedule();
       saveState();
       (document.getElementById('alias') as HTMLInputElement).value = '';
     }
@@ -232,17 +313,9 @@ if (registerForm) {
 const startBtn = document.getElementById('start-tournament');
 if (startBtn) {
   startBtn.addEventListener('click', () => {
-    if (queue.length >= 2) {
-      const p1 = queue.shift()!;
-      const p2 = queue.shift()!;
-      const next = document.getElementById('next-match');
-      if (next) next.textContent = `${p1} vs ${p2}`;
-      const p1a = document.getElementById('p1-alias');
-      const p2a = document.getElementById('p2-alias');
-      if (p1a) p1a.textContent = p1;
-      if (p2a) p2a.textContent = p2;
-      navigateTo('/game');
-    } else alert('Need at least two players in queue');
+    // Use schedule instead of raw queue for matches
+    if (!schedule.length) buildSchedule();
+    startNextScheduledMatch();
     saveState();
     updateQueue();
   });
@@ -253,11 +326,15 @@ if (newTourneyBtn) {
   newTourneyBtn.addEventListener('click', () => {
     players.length = 0;
     queue.length = 0;
+    schedule = [];
+    currentMatchIndex = null;
     saveState();
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(QUEUE_KEY);
     updatePlayers();
     updateQueue();
+    renderSchedule();
+    renderBracket();
     const next = document.getElementById('next-match');
     if (next) next.textContent = 'No match';
     navigateTo('/register');
@@ -268,4 +345,5 @@ if (newTourneyBtn) {
 loadState();
 updatePlayers();
 updateQueue();
+buildSchedule();
 navigateTo('/');
