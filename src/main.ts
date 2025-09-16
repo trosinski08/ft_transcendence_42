@@ -153,16 +153,43 @@ const queue: string[] = [];
 let schedule: Array<{ p1: string; p2: string; status: 'pending' | 'playing' | 'done'; winner?: string }> = [];
 let currentMatchIndex: number | null = null;
 
-function navigateTo(path: string) {
-  [pages.home, pages.register, pages.tournament, pages.game].forEach((p) => {
-    if (p) p.style.display = 'none';
-  });
-  if (path === '/' && pages.home) pages.home.style.display = 'block';
-  else if (path === '/register' && pages.register) pages.register.style.display = 'block';
-  else if (path === '/tournament' && pages.tournament) pages.tournament.style.display = 'block';
-  else if (path === '/game' && pages.game) pages.game.style.display = 'block';
-  history.pushState({}, '', path);
+function showRoute(path: string) {
+  [pages.home, pages.register, pages.tournament, pages.game].forEach((p) => { if (p) p.style.display = 'none'; });
+  switch (path) {
+    case '/':
+      if (pages.home) pages.home.style.display = 'block';
+      break;
+    case '/register':
+      if (pages.register) pages.register.style.display = 'block';
+      break;
+    case '/tournament':
+      if (pages.tournament) pages.tournament.style.display = 'block';
+      break;
+    case '/game':
+      if (pages.game) pages.game.style.display = 'block';
+      break;
+    default:
+      // fallback to home for unknown paths
+      if (pages.home) pages.home.style.display = 'block';
+      path = '/';
+  }
+  return path; // return possibly normalized path
 }
+
+function navigateTo(path: string, replace = false) {
+  const normalized = showRoute(path);
+  if (normalized === window.location.pathname) {
+    // if only hash/query changed we might handle separately later
+    if (replace) history.replaceState({}, '', normalized);
+    return;
+  }
+  if (replace) history.replaceState({}, '', normalized); else history.pushState({}, '', normalized);
+}
+
+// Handle browser back/forward
+window.addEventListener('popstate', () => {
+  showRoute(window.location.pathname);
+});
 
 document.addEventListener('click', (e) => {
   const target = e.target as HTMLElement;
@@ -341,9 +368,10 @@ if (newTourneyBtn) {
   });
 }
 
-// Initial UI state load
+// Initial UI state load + route hydration
 loadState();
 updatePlayers();
 updateQueue();
 buildSchedule();
-navigateTo('/');
+// Hydrate initial path (supports deep-link reload); fallback handled inside showRoute
+navigateTo(window.location.pathname || '/', true);
