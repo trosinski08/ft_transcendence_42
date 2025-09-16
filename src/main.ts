@@ -324,16 +324,27 @@ const registerForm = document.getElementById('register-form') as HTMLFormElement
 if (registerForm) {
   registerForm.addEventListener('submit', (ev) => {
     ev.preventDefault();
-    const alias = (document.getElementById('alias') as HTMLInputElement).value.trim();
-    if (alias) {
-      if (!players.includes(alias)) players.push(alias);
-      if (!queue.includes(alias)) queue.push(alias);
-      updatePlayers();
-      updateQueue();
-      buildSchedule();
-      saveState();
-      (document.getElementById('alias') as HTMLInputElement).value = '';
-    }
+    const inputEl = document.getElementById('alias') as HTMLInputElement;
+    const errEl = document.getElementById('alias-error') as HTMLElement | null;
+    const raw = inputEl.value;
+    const sanitized = raw.replace(/\s+/g, ' ').trim();
+    const alias = sanitized; // we only trim/collapse whitespace; disallow spaces below
+    const ALIAS_RE = /^[A-Za-z0-9_\-]{2,20}$/;
+    function showError(msg: string) { if (errEl) { errEl.textContent = msg; errEl.style.display = 'inline'; } }
+    function clearError() { if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; } }
+    clearError();
+    if (!alias) return showError('Alias required');
+    if (!ALIAS_RE.test(alias)) return showError('2-20 chars: A-Z a-z 0-9 _ -');
+    // case-insensitive uniqueness
+    const lower = alias.toLowerCase();
+    if (players.some(p => p.toLowerCase() === lower)) return showError('Alias already registered');
+    players.push(alias);
+    if (!queue.some(p => p.toLowerCase() === lower)) queue.push(alias);
+    updatePlayers();
+    updateQueue();
+    buildSchedule();
+    saveState();
+    inputEl.value = '';
   });
 }
 
@@ -355,6 +366,7 @@ if (newTourneyBtn) {
     queue.length = 0;
     schedule = [];
     currentMatchIndex = null;
+    resetMatch();
     saveState();
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(QUEUE_KEY);
@@ -364,6 +376,8 @@ if (newTourneyBtn) {
     renderBracket();
     const next = document.getElementById('next-match');
     if (next) next.textContent = 'No match';
+    const errEl = document.getElementById('alias-error') as HTMLElement | null;
+    if (errEl) { errEl.textContent=''; errEl.style.display='none'; }
     navigateTo('/register');
   });
 }
