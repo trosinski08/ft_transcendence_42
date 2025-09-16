@@ -116,9 +116,9 @@ function step() {
   requestAnimationFrame(step);
 }
 
-const keys = new Set<number>();
+const keys = new Set<string>();
 window.addEventListener('keydown', (e) => {
-  keys.add(e.keyCode);
+  keys.add(e.code);
   if (e.code === 'Space') {
     if (winner) return; // ignore after game end
     running = !running;
@@ -128,13 +128,13 @@ window.addEventListener('keydown', (e) => {
     resetMatch();
   }
 });
-window.addEventListener('keyup', (e) => keys.delete(e.keyCode));
+window.addEventListener('keyup', (e) => keys.delete(e.code));
 
 function handleInput() {
-  if (keys.has(87)) p1Y -= PADDLE_SPEED;
-  if (keys.has(83)) p1Y += PADDLE_SPEED;
-  if (keys.has(38)) p2Y -= PADDLE_SPEED;
-  if (keys.has(40)) p2Y += PADDLE_SPEED;
+  if (keys.has('KeyW')) p1Y -= PADDLE_SPEED;
+  if (keys.has('KeyS')) p1Y += PADDLE_SPEED;
+  if (keys.has('ArrowUp')) p2Y -= PADDLE_SPEED;
+  if (keys.has('ArrowDown')) p2Y += PADDLE_SPEED;
   p1Y = Math.max(10, Math.min(H - paddleH - 10, p1Y));
   p2Y = Math.max(10, Math.min(H - paddleH - 10, p2Y));
   setTimeout(handleInput, 12);
@@ -398,3 +398,12 @@ updateQueue();
 buildSchedule();
 // Hydrate initial path (supports deep-link reload); fallback handled inside showRoute
 navigateTo(window.location.pathname || '/', true);
+
+// Global error handling
+window.addEventListener('error', (event) => {
+  console.error('Uncaught error:', event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+});
