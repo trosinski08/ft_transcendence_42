@@ -7,12 +7,39 @@ const ctx = canvas?.getContext('2d') || null;
 const W = canvas.width;
 const H = canvas.height;
 
+// Scoring and match state
+let score1 = 0;
+let score2 = 0;
+const WIN_SCORE = 11;
+let winner: string | null = null;
+let firstStartShown = true; // controls initial "press space" prompt
+
 let running = false;
 let p1Y = H / 2 - 40;
 let p2Y = H / 2 - 40;
 const paddleH = 80;
 const paddleW = 8;
 let ball = { x: W / 2, y: H / 2, vx: 3, vy: 2, r: 6 };
+
+function resetBall(direction: number = (Math.random() > 0.5 ? 1 : -1)) {
+  ball = { x: W / 2, y: H / 2, vx: direction * 3, vy: (Math.random() - 0.5) * 4, r: 6 };
+  running = false;
+}
+
+function resetMatch() {
+  score1 = 0; score2 = 0; winner = null; updateScoreUI();
+  resetBall();
+  firstStartShown = true;
+}
+
+function updateScoreUI() {
+  const s1 = document.getElementById('score1');
+  const s2 = document.getElementById('score2');
+  if (s1) s1.textContent = String(score1);
+  if (s2) s2.textContent = String(score2);
+  const next = document.getElementById('next-match');
+  if (winner && next) next.textContent = `Winner: ${winner}`;
+}
 
 function clear() {
   ctx.fillStyle = '#000';
@@ -21,29 +48,57 @@ function clear() {
 
 function draw() {
   clear();
+  // Paddles
   ctx.fillStyle = '#0f0';
   ctx.fillRect(30, p1Y, paddleW, paddleH);
   ctx.fillRect(W - 30 - paddleW, p2Y, paddleW, paddleH);
+  // Ball
   ctx.beginPath();
   ctx.fillStyle = '#fff';
   ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
   ctx.fill();
+  // Center line (cosmetic)
+  ctx.strokeStyle = 'rgba(0,255,106,0.35)';
+  ctx.setLineDash([10, 14]);
+  ctx.beginPath();
+  ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
+  ctx.setLineDash([]);
+  // Overlay messages
+  if (winner) {
+    ctx.fillStyle = '#00ff6a';
+    ctx.font = '24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${winner} WINS! (Press R to reset)`, W / 2, H / 2);
+  } else if (!running && firstStartShown) {
     ctx.fillStyle = '#0f0';
     ctx.font = '16px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('PRESS SPACE TO START', W / 2, H / 2);
+  }
 }
 
 function step() {
-  if (running) {
+  if (running && !winner) {
     ball.x += ball.vx;
     ball.y += ball.vy;
+    // Wall collision
     if (ball.y < ball.r || ball.y > H - ball.r) ball.vy *= -1;
-    if (ball.x - ball.r < 30 + paddleW && ball.y > p1Y && ball.y < p1Y + paddleH) ball.vx = Math.abs(ball.vx);
-    if (ball.x + ball.r > W - 30 - paddleW && ball.y > p2Y && ball.y < p2Y + paddleH) ball.vx = -Math.abs(ball.vx);
-    if (ball.x < -50 || ball.x > W + 50) {
-      ball = { x: W / 2, y: H / 2, vx: (Math.random() > 0.5 ? 1 : -1) * 3, vy: (Math.random() - 0.5) * 4, r: 6 };
-      running = false;
+    // Paddle collisions
+    if (ball.x - ball.r < 30 + paddleW && ball.y > p1Y && ball.y < p1Y + paddleH) {
+      ball.vx = Math.abs(ball.vx) * 1.03; // mild acceleration
+    }
+    if (ball.x + ball.r > W - 30 - paddleW && ball.y > p2Y && ball.y < p2Y + paddleH) {
+      ball.vx = -Math.abs(ball.vx) * 1.03;
+    }
+    // Scoring
+    if (ball.x < -ball.r) {
+      score2 += 1; updateScoreUI();
+      if (score2 >= WIN_SCORE) { winner = (document.getElementById('p2-alias')?.textContent || 'Player 2'); }
+      resetBall(1);
+    } else if (ball.x > W + ball.r) {
+      score1 += 1; updateScoreUI();
+      if (score1 >= WIN_SCORE) { winner = (document.getElementById('p1-alias')?.textContent || 'Player 1'); }
+      resetBall(-1);
     }
   }
   draw();
@@ -53,7 +108,14 @@ function step() {
 const keys = new Set<number>();
 window.addEventListener('keydown', (e) => {
   keys.add(e.keyCode);
-  if (e.code === 'Space') running = !running;
+  if (e.code === 'Space') {
+    if (winner) return; // ignore after game end
+    running = !running;
+    if (running) firstStartShown = false;
+  }
+  if (e.code === 'KeyR') {
+    resetMatch();
+  }
 });
 window.addEventListener('keyup', (e) => keys.delete(e.keyCode));
 
@@ -67,6 +129,7 @@ function handleInput() {
   setTimeout(handleInput, 12);
 }
 
+updateScoreUI();
 draw();
 handleInput();
 requestAnimationFrame(step);
