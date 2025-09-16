@@ -1,5 +1,11 @@
 import './styles.css';
 
+// Utility functions
+function sanitize(str: string): string {
+  // Collapse multiple whitespace to single space, trim
+  return str.replace(/\s+/g, ' ').trim();
+}
+
 const canvas = document.getElementById('game') as HTMLCanvasElement | null;
 const ctx = canvas?.getContext('2d') || null;
 
@@ -336,7 +342,7 @@ if (registerForm) {
     const inputEl = document.getElementById('alias') as HTMLInputElement;
     const errEl = document.getElementById('alias-error') as HTMLElement | null;
     const raw = inputEl.value;
-    const sanitized = raw.replace(/\s+/g, ' ').trim();
+    const sanitized = sanitize(raw);
     const alias = sanitized; // we only trim/collapse whitespace; disallow spaces below
     const ALIAS_RE = /^[A-Za-z0-9_\-]{2,20}$/;
     function showError(msg: string) { if (errEl) { errEl.textContent = msg; errEl.style.display = 'inline'; } }
