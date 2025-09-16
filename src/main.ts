@@ -7,6 +7,14 @@ const ctx = canvas?.getContext('2d') || null;
 const W = canvas.width;
 const H = canvas.height;
 
+// Gameplay constants (uniform rules)
+const PADDLE_SPEED = 6; // base units per input tick
+const BALL_INIT_SPEED_X = 3;
+const BALL_INIT_SPEED_Y_RANGE = 4; // random range (-range/2 .. range/2)
+const BALL_RADIUS = 6;
+const BALL_SPEED_INC_FACTOR = 1.03; // acceleration per paddle hit
+const BALL_MAX_SPEED = 11; // hard cap to preserve fairness
+
 // Scoring and match state
 let score1 = 0;
 let score2 = 0;
@@ -19,10 +27,11 @@ let p1Y = H / 2 - 40;
 let p2Y = H / 2 - 40;
 const paddleH = 80;
 const paddleW = 8;
-let ball = { x: W / 2, y: H / 2, vx: 3, vy: 2, r: 6 };
+let ball = { x: W / 2, y: H / 2, vx: BALL_INIT_SPEED_X, vy: 2, r: BALL_RADIUS };
 
 function resetBall(direction: number = (Math.random() > 0.5 ? 1 : -1)) {
-  ball = { x: W / 2, y: H / 2, vx: direction * 3, vy: (Math.random() - 0.5) * 4, r: 6 };
+  const vy = (Math.random() - 0.5) * BALL_INIT_SPEED_Y_RANGE;
+  ball = { x: W / 2, y: H / 2, vx: direction * BALL_INIT_SPEED_X, vy, r: BALL_RADIUS };
   running = false;
 }
 
@@ -85,10 +94,10 @@ function step() {
     if (ball.y < ball.r || ball.y > H - ball.r) ball.vy *= -1;
     // Paddle collisions
     if (ball.x - ball.r < 30 + paddleW && ball.y > p1Y && ball.y < p1Y + paddleH) {
-      ball.vx = Math.abs(ball.vx) * 1.03; // mild acceleration
+      ball.vx = Math.min(Math.abs(ball.vx) * BALL_SPEED_INC_FACTOR, BALL_MAX_SPEED);
     }
     if (ball.x + ball.r > W - 30 - paddleW && ball.y > p2Y && ball.y < p2Y + paddleH) {
-      ball.vx = -Math.abs(ball.vx) * 1.03;
+      ball.vx = -Math.min(Math.abs(ball.vx) * BALL_SPEED_INC_FACTOR, BALL_MAX_SPEED);
     }
     // Scoring
     if (ball.x < -ball.r) {
@@ -122,10 +131,10 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => keys.delete(e.keyCode));
 
 function handleInput() {
-  if (keys.has(87)) p1Y -= 6;
-  if (keys.has(83)) p1Y += 6;
-  if (keys.has(38)) p2Y -= 6;
-  if (keys.has(40)) p2Y += 6;
+  if (keys.has(87)) p1Y -= PADDLE_SPEED;
+  if (keys.has(83)) p1Y += PADDLE_SPEED;
+  if (keys.has(38)) p2Y -= PADDLE_SPEED;
+  if (keys.has(40)) p2Y += PADDLE_SPEED;
   p1Y = Math.max(10, Math.min(H - paddleH - 10, p1Y));
   p2Y = Math.max(10, Math.min(H - paddleH - 10, p2Y));
   setTimeout(handleInput, 12);
