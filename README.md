@@ -1,6 +1,6 @@
 # Frontend (ft_transcendence)
 
-Clean, staged history for the Pong frontend.
+Clean, staged history for the Pong frontend with SPA routing, AI opponent, and HTTPS via Nginx + Docker.
 
 ## Local development
 
@@ -67,16 +67,26 @@ Gameplay rules:
 - Case-insensitive uniqueness (e.g., "Player" and "player" conflict).
 - Sanitized: multiple whitespace collapsed, trimmed.
 
+## AI Opponent
+
+- Toggle in Game page: checkbox "AI Opponent" or press `A`.
+- Difficulty: `EASY`, `NORMAL`, `HARD` selector.
+- Persistence: Settings (toggle + difficulty) stored in `localStorage` and restored on reload.
+- URL flags (optional): `?ai=1` and `?aiDifficulty=EASY|NORMAL|HARD`.
+- Fairness: AI uses same paddle speed limits as human players.
+
 ## Production (HTTPS) via Docker Compose
 
 Build and run with HTTPS (self-signed cert):
 
 ```bash
 cd nginx/ssl && ./generate-cert.sh && cd -
-docker-compose up --build
+sudo docker-compose down -v
+sudo docker-compose up --build -d
 ```
 
-- Open: `https://localhost:8443` (you may need to accept the self-signed certificate).
+- Open: `https://localhost:8443` (accept the self-signed certificate if prompted).
+- Deep links supported: e.g., `https://localhost:8443/game`.
 - HTTP `http://localhost:8080` redirects to HTTPS.
 - SPA fallback: unknown paths serve `index.html` for client-side routing.
 
