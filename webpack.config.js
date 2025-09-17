@@ -6,8 +6,9 @@ module.exports = {
   entry: path.resolve(__dirname, 'src', 'main.ts'),
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'main.js',
-    clean: true
+    filename: '[name].[contenthash].js',
+    clean: true,
+    publicPath: '/'
   },
   devServer: {
     static: path.resolve(__dirname, 'dist'),
