@@ -72,7 +72,7 @@ body{
 	gap:12px;
 	z-index:10;
 }
-.main-nav button{
+.main-nav a{
 	color:#9fdc9f;
 	background:transparent;
 	border:1px solid rgba(0,255,106,0.06);
@@ -80,8 +80,9 @@ body{
 	border-radius:8px;
 	cursor:pointer;
 	font-family:var(--pixel-font);
+    text-decoration:none;
 }
-.main-nav button:hover{
+.main-nav a:hover{
 	background:rgba(0,255,106,0.06);
 	color:var(--green);
 	transform:translateY(-2px);

@@ -9,10 +9,10 @@
   <div id=ui>
     <header class=title>
       <div class=main-nav>
-  <button data-href="/">Home</button>
-  <button data-href="/register">Register</button>
-  <button data-href="/tournament">Tournament</button>
-  <button data-href="/game">Play</button>
+  <a href="/" data-link>Home</a>
+  <a href="/register" data-link>Register</a>
+  <a href="/tournament" data-link>Tournament</a>
+  <a href="/game" data-link>Play</a>
       </div>
       <h1>ATARI <span class=neon>PONG</span></h1>
       <div class=scores>
@@ -69,7 +69,20 @@
         <div class=controls>
           <div class="kbd">W / S<br/><small id="p1-alias">Player 1</small></div>
           <div class="kbd">↑ / ↓<br/><small id="p2-alias">Player 2</small></div>
-          <div class=kbd>SPACE<br/><small>Start / Pause</small></div>
+         <div class=kbd>SPACE<br/><small>Start</small></div>
+         <div class="ai-controls" style="margin-top:8px">
+           <label>
+             <input type="checkbox" id="ai-toggle" /> AI Opponent
+           </label>
+           <label style="margin-left:8px">
+             Difficulty:
+             <select id="ai-difficulty">
+               <option value="EASY">Easy</option>
+               <option value="NORMAL" selected>Normal</option>
+               <option value="HARD">Hard</option>
+             </select>
+           </label>
+         </div>
         </div>
       </section>
 
