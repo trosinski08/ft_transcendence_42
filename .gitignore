@@ -18,3 +18,6 @@ SUBJECT*
 # SSL certs (local only)
 nginx/ssl/server.key
 nginx/ssl/server.crt
+
+mock-*
+*.local.md
