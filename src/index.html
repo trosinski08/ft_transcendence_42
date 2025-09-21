@@ -32,13 +32,13 @@
     </header>
 
     <main>
-  <section id="register-page" class="page" style="display:none">
+  <section id="register-page" class="page">
         <h2>Register for tournament</h2>
         <form id=register-form>
           <label for=alias>Alias:</label>
           <input id=alias name=alias required />
           <button type=submit>Join tournament</button>
-          <small id="alias-error" class="form-error" aria-live="polite" style="display:none"></small>
+          <small id="alias-error" class="form-error" aria-live="polite"></small>
         </form>
         <div>
           <h3>Registered players</h3>
@@ -46,7 +46,7 @@
         </div>
       </section>
 
-  <section id="tournament-page" class="page" style="display:none">
+  <section id="tournament-page" class="page">
         <h2>Tournament</h2>
         <div>
           <button id=start-tournament>Start Next Match</button>
@@ -62,7 +62,7 @@
         </div>
       </section>
 
-  <section id="game-page" class="page" style="display:none">
+  <section id="game-page" class="page">
         <div class=arena>
           <canvas id="game" width="860" height="420"></canvas>
         </div>
@@ -70,11 +70,11 @@
           <div class="kbd">W / S<br/><small id="p1-alias">Player 1</small></div>
           <div class="kbd">↑ / ↓<br/><small id="p2-alias">Player 2</small></div>
          <div class=kbd>SPACE<br/><small>Start</small></div>
-         <div class="ai-controls" style="margin-top:8px">
+         <div class="ai-controls">
            <label>
              <input type="checkbox" id="ai-toggle" /> AI Opponent
            </label>
-           <label style="margin-left:8px">
+           <label class="ai-gap">
              Difficulty:
              <select id="ai-difficulty">
                <option value="EASY">Easy</option>

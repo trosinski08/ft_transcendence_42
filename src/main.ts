@@ -283,23 +283,25 @@ const queue: string[] = [];
 
 function showRoute(path: string) {
   try { console.log('[nav] showRoute ->', path); } catch {}
-  [pages.home, pages.register, pages.tournament, pages.game].forEach((p) => { if (p) p.style.display = 'none'; });
+  [pages.home, pages.register, pages.tournament, pages.game].forEach((p) => {
+    if (p) { p.classList.remove('visible'); }
+  });
   switch (path) {
     case '/':
-      if (pages.home) pages.home.style.display = 'block';
+      if (pages.home) pages.home.classList.add('visible');
       break;
     case '/register':
-      if (pages.register) pages.register.style.display = 'block';
+      if (pages.register) pages.register.classList.add('visible');
       break;
     case '/tournament':
-      if (pages.tournament) pages.tournament.style.display = 'block';
+      if (pages.tournament) pages.tournament.classList.add('visible');
       break;
     case '/game':
-      if (pages.game) pages.game.style.display = 'block';
+      if (pages.game) pages.game.classList.add('visible');
       break;
     default:
       // fallback to home for unknown paths
-      if (pages.home) pages.home.style.display = 'block';
+      if (pages.home) pages.home.classList.add('visible');
       path = '/';
   }
   try { document.body && document.body.setAttribute('data-route', path); } catch {}
@@ -465,8 +467,18 @@ if (registerForm) {
     const sanitized = sanitize(raw);
     const alias = sanitized; // we only trim/collapse whitespace; disallow spaces below
     const ALIAS_RE = /^[A-Za-z0-9_\-]{2,20}$/;
-    function showError(msg: string) { if (errEl) { errEl.textContent = msg; errEl.style.display = 'inline'; } }
-    function clearError() { if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; } }
+    function showError(msg: string) {
+      if (errEl) {
+        errEl.textContent = msg;
+        errEl.classList.add('visible');
+      }
+    }
+    function clearError() {
+      if (errEl) {
+        errEl.textContent = '';
+        errEl.classList.remove('visible');
+      }
+    }
     clearError();
     if (!alias) return showError('Alias required');
     if (!ALIAS_RE.test(alias)) return showError('2-20 chars: A-Z a-z 0-9 _ -');
