@@ -81,19 +81,46 @@ Build and run with HTTPS (self-signed cert):
 
 ```bash
 cd nginx/ssl && ./generate-cert.sh && cd -
-sudo docker-compose down -v
+sudo docker-compose down -v --remove-orphans
 sudo docker-compose up --build -d
 ```
 
 - Open: `https://localhost:8443` (accept the self-signed certificate if prompted).
 - Deep links supported: e.g., `https://localhost:8443/game`.
-- HTTP `http://localhost:8080` redirects to HTTPS.
+- HTTPS only: compose exposes `8443:443` for this app (no HTTP port).
 - SPA fallback: unknown paths serve `index.html` for client-side routing.
+
+Note: If you see something on port 80, that’s a different container/service and not part of this frontend.
 
 Notes:
 - Docker must be available in your environment. If using WSL, enable Docker Desktop WSL 2 integration.
 - This setup provides SPA history fallback and prepares for `wss`.
 - Production build is served by Nginx with TLS, caching headers, and gzip.
+
+### Security Headers (Nginx)
+
+- Strict-Transport-Security (HSTS)
+- X-Frame-Options: SAMEORIGIN
+- X-Content-Type-Options: nosniff
+- Referrer-Policy: strict-origin-when-cross-origin
+- Permissions-Policy: geolocation=(), microphone=(), camera=()
+- Content-Security-Policy (CSP):
+	- `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'`
+	- No `'unsafe-inline'` for styles in production; CSS is extracted into a file.
+
+### Verify headers
+
+```bash
+curl -kI https://localhost:8443 | sed -n '1,60p'
+```
+
+If your local tooling forwards ports and you suspect an old cached header, force the host request to the container IP:
+
+```bash
+CID=$(sudo docker ps -qf name=ft_transcendence_frontend_repo-frontend-1)
+IP=$(sudo docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$CID")
+curl -kI --resolve localhost:8443:$IP https://localhost:8443/ | sed -n '1,60p'
+```
 
 ## Browser Support
 
