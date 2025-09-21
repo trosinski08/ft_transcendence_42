@@ -1,9 +1,18 @@
-version: '3.9'
 services:
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.prod
     ports:
-      - "8443:443" # HTTPS only
+      - "9443:443" # HTTPS
     restart: unless-stopped
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.30.0.0/16

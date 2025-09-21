@@ -27,3 +27,15 @@ jobs:
 
     - name: Build
       run: npm run build
+
+    - name: CSP header check
+      run: |
+        docker run --rm -d --name csp-test -p 9443:443 \
+          -v "$PWD/dist":/usr/share/nginx/html:ro \
+          -v "$PWD/nginx/nginx.conf":/etc/nginx/conf.d/default.conf:ro \
+          -v "$PWD/nginx/ssl":/etc/nginx/ssl:ro \
+          nginx:1.27-alpine
+        for i in {1..20}; do curl -ksI https://localhost:9443/ && break || sleep 1; done
+        curl -ksI https://localhost:9443/ | tee headers.txt
+        grep -i "^Content-Security-Policy: .*style-src 'self'" headers.txt
+        docker rm -f csp-test
