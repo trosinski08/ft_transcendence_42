@@ -60,8 +60,8 @@ jobs:
           exit 1
         fi
 
-        echo "Fetching headers..."
-  curl -ksI https://127.0.0.1:9443/ | tee headers.txt || true
+    echo "Fetching headers..."
+    curl -ksI https://127.0.0.1:9443/ | tee headers.txt || true
         echo "Active CSP line:"; grep -i "^Content-Security-Policy:" headers.txt || true
         echo "Asserting CSP contains style-src 'self' and not 'unsafe-inline'..."
         CSP_LINE=$(grep -i "^Content-Security-Policy:" headers.txt || true)
