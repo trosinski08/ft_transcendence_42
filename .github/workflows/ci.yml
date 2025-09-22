@@ -37,21 +37,32 @@ jobs:
           -v "$PWD/nginx/nginx.conf":/etc/nginx/conf.d/default.conf:ro \
           -v "$PWD/nginx/ssl":/etc/nginx/ssl:ro \
           nginx:1.27-alpine
+
         echo "Waiting for HTTPS on 9443..."
-        for i in $(seq 1 30); do
-          if curl -ksI https://localhost:9443/ >/dev/null 2>&1; then echo "Up"; break; fi
+        READY=0
+        for i in $(seq 1 45); do
+          if curl -ksI https://localhost:9443/ >/dev/null 2>&1; then READY=1; echo "Up"; break; fi
           sleep 1
         done
+
+        if [ "$READY" -ne 1 ]; then
+          echo "Container status:"; docker ps -a || true
+          echo "Nginx last logs:"; docker logs --tail 200 csp-test || true
+          echo "Dumping nginx config:"; docker exec csp-test nginx -T || true
+          echo "Failed to start nginx on 9443 within timeout" >&2
+          docker rm -f csp-test || true
+          exit 1
+        fi
+
         echo "Fetching headers..."
-        curl -ksI https://localhost:9443/ | tee headers.txt
-        echo "Container status:" && docker ps -a || true
-        echo "Nginx last logs:" && docker logs --tail 120 csp-test || true
-        echo "Active CSP line:" && grep -i "^Content-Security-Policy:" headers.txt || true
+        curl -ksI https://localhost:9443/ | tee headers.txt || true
+        echo "Active CSP line:"; grep -i "^Content-Security-Policy:" headers.txt || true
         echo "Asserting CSP contains style-src 'self' and not 'unsafe-inline'..."
         CSP_LINE=$(grep -i "^Content-Security-Policy:" headers.txt || true)
         echo "$CSP_LINE" | grep -qi "style-src 'self'"
         if echo "$CSP_LINE" | grep -qi "unsafe-inline"; then
           echo "CSP includes disallowed 'unsafe-inline'" >&2
+          docker rm -f csp-test || true
           exit 1
         fi
         echo "CSP check passed."
