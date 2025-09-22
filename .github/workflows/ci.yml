@@ -32,7 +32,7 @@ jobs:
       run: |
         set -euxo pipefail
         echo "Starting nginx:1.27-alpine for CSP check..."
-        docker run --rm -d --name csp-test -p 9443:443 \
+        docker run -d --name csp-test -p 9443:443 \
           -v "$PWD/dist":/usr/share/nginx/html:ro \
           -v "$PWD/nginx/nginx.conf":/etc/nginx/conf.d/default.conf:ro \
           -v "$PWD/nginx/ssl":/etc/nginx/ssl:ro \
@@ -41,7 +41,13 @@ jobs:
         echo "Waiting for HTTPS on 9443..."
         READY=0
         for i in $(seq 1 45); do
-          if curl -ksI https://localhost:9443/ >/dev/null 2>&1; then READY=1; echo "Up"; break; fi
+          STATUS=$(docker inspect -f '{{.State.Status}}' csp-test 2>/dev/null || echo 'missing')
+          if [ "$STATUS" = "exited" ] || [ "$STATUS" = "dead" ]; then
+            echo "Container exited early. Logs:"; docker logs csp-test || true
+            echo "Inspect:"; docker inspect csp-test || true
+            break
+          fi
+          if curl -ksI https://127.0.0.1:9443/ >/dev/null 2>&1; then READY=1; echo "Up"; break; fi
           sleep 1
         done
 
@@ -55,7 +61,7 @@ jobs:
         fi
 
         echo "Fetching headers..."
-        curl -ksI https://localhost:9443/ | tee headers.txt || true
+  curl -ksI https://127.0.0.1:9443/ | tee headers.txt || true
         echo "Active CSP line:"; grep -i "^Content-Security-Policy:" headers.txt || true
         echo "Asserting CSP contains style-src 'self' and not 'unsafe-inline'..."
         CSP_LINE=$(grep -i "^Content-Security-Policy:" headers.txt || true)
