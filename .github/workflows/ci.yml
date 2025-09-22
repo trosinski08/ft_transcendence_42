@@ -30,12 +30,29 @@ jobs:
 
     - name: CSP header check
       run: |
+        set -euxo pipefail
+        echo "Starting nginx:1.27-alpine for CSP check..."
         docker run --rm -d --name csp-test -p 9443:443 \
           -v "$PWD/dist":/usr/share/nginx/html:ro \
           -v "$PWD/nginx/nginx.conf":/etc/nginx/conf.d/default.conf:ro \
           -v "$PWD/nginx/ssl":/etc/nginx/ssl:ro \
           nginx:1.27-alpine
-        for i in {1..20}; do curl -ksI https://localhost:9443/ && break || sleep 1; done
+        echo "Waiting for HTTPS on 9443..."
+        for i in $(seq 1 30); do
+          if curl -ksI https://localhost:9443/ >/dev/null 2>&1; then echo "Up"; break; fi
+          sleep 1
+        done
+        echo "Fetching headers..."
         curl -ksI https://localhost:9443/ | tee headers.txt
-        grep -i "^Content-Security-Policy: .*style-src 'self'" headers.txt
+        echo "Container status:" && docker ps -a || true
+        echo "Nginx last logs:" && docker logs --tail 120 csp-test || true
+        echo "Active CSP line:" && grep -i "^Content-Security-Policy:" headers.txt || true
+        echo "Asserting CSP contains style-src 'self' and not 'unsafe-inline'..."
+        CSP_LINE=$(grep -i "^Content-Security-Policy:" headers.txt || true)
+        echo "$CSP_LINE" | grep -qi "style-src 'self'"
+        if echo "$CSP_LINE" | grep -qi "unsafe-inline"; then
+          echo "CSP includes disallowed 'unsafe-inline'" >&2
+          exit 1
+        fi
+        echo "CSP check passed."
         docker rm -f csp-test
