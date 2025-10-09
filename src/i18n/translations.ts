@@ -1,0 +1,319 @@
+export type Lang = 'pl' | 'en' | 'de';
+
+export const DEFAULT_LANG: Lang = 'pl';
+
+type Dict = Record<string, string>;
+
+export const MESSAGES: Record<Lang, Dict> = {
+  pl: {
+    'nav.home': 'Home',
+    'nav.register': 'Rejestracja',
+    'nav.tournament': 'Turniej',
+    'nav.play': 'Graj',
+    'nav.settings': 'Ustawienia',
+    'nav.stats': 'Statystyki',
+  'nav.multiplayer': 'Multiplayer',
+  'multi.title': 'Tryb 4 graczy',
+  'multi.needFour': 'Wymaganych co najmniej 4 graczy',
+  'multi.controls': 'Sterowanie',
+  'multi.p1': 'Gracz 1 (lewy): W/S',
+  'multi.p2': 'Gracz 2 (prawy): ↑/↓',
+  'multi.p3': 'Gracz 3 (górny): A/D',
+  'multi.p4': 'Gracz 4 (dolny): J/L',
+  'multi.start': 'SPACJA — START / PAUZA',
+  'multi.win': '{name} WYGRYWA TRYB 4G! 🇵',
+  'multi.resetHint': 'Naciśnij R, aby zresetować mecz',
+    'lang.label': 'Język',
+
+    'hdr.upcoming': 'Nadchodzący harmonogram',
+    'hdr.bracket': 'Drabinka (automatyczna)',
+    'hdr.vs': 'VS',
+    'hdr.player1': 'GRACZ 1',
+    'hdr.player2': 'GRACZ 2',
+    'hdr.est': 'OD 1972',
+
+    'settings.title': 'Ustawienia',
+    'settings.hint': 'Zmiany zapisują się automatycznie.',
+  'settings.scoreToWin': 'Wynik do zwycięstwa',
+  'settings.paddleSpeed': 'Prędkość paletki',
+  'settings.paddleHeight': 'Wysokość paletki',
+  'settings.paddleWidth': 'Szerokość paletki',
+  'settings.ballInitX': 'Początkowa prędkość X piłki',
+  'settings.ballInitYRange': 'Zakres początkowego Y piłki',
+  'settings.ballIncFactor': 'Współczynnik przyspieszenia piłki',
+  'settings.ballMaxSpeed': 'Maksymalna prędkość piłki',
+  'settings.theme': 'Motyw',
+  'settings.theme.neon': 'Neon',
+  'settings.theme.classic': 'Klasyczny',
+  'settings.theme.hc': 'Wysoki kontrast',
+  'settings.powerups.enable': 'Power‑upy',
+  'settings.powerups.interval': 'Częstotliwość pojawiania (sek.)',
+
+    'reg.title': 'Rejestracja do turnieju',
+    'reg.alias': 'Pseudonim:',
+    'reg.join': 'Dołącz do turnieju',
+    'reg.registered': 'Zarejestrowani gracze',
+
+    'tour.title': 'Turniej',
+    'tour.queue': 'Kolejka',
+    'tour.next': 'Następny mecz',
+    'tour.noMatch': 'Brak meczu',
+    'tour.startNext': 'Start następnego meczu',
+    'tour.new': 'Nowy turniej',
+    'tour.needTwo': 'Co najmniej 2 graczy, aby rozpocząć',
+
+    'game.controls.start': 'Start',
+    'game.ai.toggle': 'Przeciwnik AI',
+    'game.ai.difficulty': 'Poziom trudności:',
+  'ai.diff.easy': 'Łatwy',
+  'ai.diff.normal': 'Normalny',
+  'ai.diff.hard': 'Trudny',
+    'game.overlay.start': 'NACIŚNIJ SPACJĘ, ABY ZACZĄĆ',
+    'game.overlay.win': '{name} WYGRYWA! (Naciśnij R, aby zresetować)',
+    'game.player1': 'Gracz 1',
+    'game.player2': 'Gracz 2',
+    'game.ai': 'AI',
+
+  'game.powerup.fast': 'Przyspieszenie!',
+  'game.powerup.slow': 'Spowolnienie!',
+  'game.powerup.big': 'Większa paletka!',
+  'game.powerup.small': 'Mniejsza paletka przeciwnika!',
+  'game.powerup.point': '+1 punkt!',
+
+    'errors.alias.required': 'Wymagany pseudonim',
+    'errors.alias.invalid': '2-20 znaków: A-Z a-z 0-9 _ -',
+    'errors.alias.duplicate': 'Pseudonim już zarejestrowany',
+
+    'home.welcome': 'Witamy w Atari Pong. Użyj nawigacji, aby zarejestrować graczy i rozpocząć turniej.',
+    'common.vs': 'vs',
+    'tour.winner': 'Zwycięzca',
+    'tour.match': 'Mecz {n}: {p1} vs {p2}',
+
+    'stats.title': 'Statystyki',
+    'stats.topPlayers': 'Najlepsi gracze',
+    'stats.recentMatches': 'Ostatnie mecze',
+    'stats.wins': 'Wygrane',
+    'stats.losses': 'Przegrane',
+    'stats.rating': 'Ranking',
+    'stats.streak': 'Seria',
+    'stats.noData': 'Brak danych',
+    'stats.reset': 'Wyczyść statystyki',
+  },
+  en: {
+    'nav.home': 'Home',
+    'nav.register': 'Register',
+    'nav.tournament': 'Tournament',
+    'nav.play': 'Play',
+    'nav.settings': 'Settings',
+    'nav.stats': 'Stats',
+  'nav.multiplayer': 'Multiplayer',
+  'multi.title': '4-Player Mode',
+  'multi.needFour': 'At least 4 players required',
+  'multi.controls': 'Controls',
+  'multi.p1': 'Player 1 (left): W/S',
+  'multi.p2': 'Player 2 (right): ↑/↓',
+  'multi.p3': 'Player 3 (top): A/D',
+  'multi.p4': 'Player 4 (bottom): J/L',
+  'multi.start': 'SPACE — START / PAUSE',
+  'multi.win': '{name} WINS 4P MODE!',
+  'multi.resetHint': 'Press R to reset the match',
+    'lang.label': 'Language',
+
+    'hdr.upcoming': 'Upcoming schedule',
+    'hdr.bracket': 'Bracket (auto-generated)',
+    'hdr.vs': 'VS',
+    'hdr.player1': 'PLAYER 1',
+    'hdr.player2': 'PLAYER 2',
+    'hdr.est': 'EST. 1972',
+
+    'settings.title': 'Settings',
+    'settings.hint': 'Changes save automatically.',
+  'settings.scoreToWin': 'Score to win',
+  'settings.paddleSpeed': 'Paddle speed',
+  'settings.paddleHeight': 'Paddle height',
+  'settings.paddleWidth': 'Paddle width',
+  'settings.ballInitX': 'Ball init speed X',
+  'settings.ballInitYRange': 'Ball init Y range',
+  'settings.ballIncFactor': 'Ball speed factor',
+  'settings.ballMaxSpeed': 'Ball max speed',
+  'settings.theme': 'Theme',
+  'settings.theme.neon': 'Neon',
+  'settings.theme.classic': 'Classic',
+  'settings.theme.hc': 'High contrast',
+  'settings.powerups.enable': 'Power‑ups',
+  'settings.powerups.interval': 'Spawn interval (sec)',
+
+    'reg.title': 'Register for tournament',
+    'reg.alias': 'Alias:',
+    'reg.join': 'Join tournament',
+    'reg.registered': 'Registered players',
+
+    'tour.title': 'Tournament',
+    'tour.queue': 'Queue',
+    'tour.next': 'Next match',
+    'tour.noMatch': 'No match',
+    'tour.startNext': 'Start Next Match',
+    'tour.new': 'New Tournament',
+    'tour.needTwo': 'Need at least 2 players to start',
+
+    'game.controls.start': 'Start',
+    'game.ai.toggle': 'AI Opponent',
+    'game.ai.difficulty': 'Difficulty:',
+  'ai.diff.easy': 'Easy',
+  'ai.diff.normal': 'Normal',
+  'ai.diff.hard': 'Hard',
+    'game.overlay.start': 'PRESS SPACE TO START',
+    'game.overlay.win': '{name} WINS! (Press R to reset)',
+    'game.player1': 'Player 1',
+    'game.player2': 'Player 2',
+    'game.ai': 'AI',
+
+  'game.powerup.fast': 'Speed up!',
+  'game.powerup.slow': 'Slow down!',
+  'game.powerup.big': 'Bigger paddle!',
+  'game.powerup.small': "Opponent's paddle smaller!",
+  'game.powerup.point': '+1 point!',
+
+    'errors.alias.required': 'Alias required',
+    'errors.alias.invalid': '2-20 chars: A-Z a-z 0-9 _ -',
+    'errors.alias.duplicate': 'Alias already registered',
+
+    'home.welcome': 'Welcome to Atari Pong. Use the navigation to register players and start a tournament.',
+    'common.vs': 'vs',
+    'tour.winner': 'Winner',
+    'tour.match': 'Match {n}: {p1} vs {p2}',
+
+    'stats.title': 'Stats',
+    'stats.topPlayers': 'Top players',
+    'stats.recentMatches': 'Recent matches',
+    'stats.wins': 'Wins',
+    'stats.losses': 'Losses',
+    'stats.rating': 'Rating',
+    'stats.streak': 'Streak',
+    'stats.noData': 'No data',
+    'stats.reset': 'Reset stats',
+  },
+  de: {
+    'nav.home': 'Start',
+    'nav.register': 'Registrierung',
+    'nav.tournament': 'Turnier',
+    'nav.play': 'Spielen',
+    'nav.settings': 'Einstellungen',
+    'nav.stats': 'Statistiken',
+  'nav.multiplayer': 'Mehrspieler',
+  'multi.title': '4‑Spieler‑Modus',
+  'multi.needFour': 'Mindestens 4 Spieler erforderlich',
+  'multi.controls': 'Steuerung',
+  'multi.p1': 'Spieler 1 (links): W/S',
+  'multi.p2': 'Spieler 2 (rechts): ↑/↓',
+  'multi.p3': 'Spieler 3 (oben): A/D',
+  'multi.p4': 'Spieler 4 (unten): J/L',
+  'multi.start': 'LEERTASTE — START / PAUSE',
+  'multi.win': '{name} GEWINNT 4‑SPIELER!',
+  'multi.resetHint': 'Drücke R, um das Spiel zurückzusetzen',
+    'lang.label': 'Sprache',
+
+    'hdr.upcoming': 'Bevorstehender Spielplan',
+    'hdr.bracket': 'Turnierbaum (automatisch)',
+    'hdr.vs': 'VS',
+    'hdr.player1': 'SPIELER 1',
+    'hdr.player2': 'SPIELER 2',
+    'hdr.est': 'SEIT 1972',
+
+    'settings.title': 'Einstellungen',
+    'settings.hint': 'Änderungen werden automatisch gespeichert.',
+  'settings.scoreToWin': 'Punktzahl zum Sieg',
+  'settings.paddleSpeed': 'Schlägergeschwindigkeit',
+  'settings.paddleHeight': 'Schlägerhöhe',
+  'settings.paddleWidth': 'Schlägerbreite',
+  'settings.ballInitX': 'Anfangsgeschw. X des Balls',
+  'settings.ballInitYRange': 'Bereich Anfangs‑Y des Balls',
+  'settings.ballIncFactor': 'Beschleunigungsfaktor des Balls',
+  'settings.ballMaxSpeed': 'Maximale Ballgeschwindigkeit',
+  'settings.theme': 'Theme',
+  'settings.theme.neon': 'Neon',
+  'settings.theme.classic': 'Klassisch',
+  'settings.theme.hc': 'Hoher Kontrast',
+  'settings.powerups.enable': 'Power‑ups',
+  'settings.powerups.interval': 'Spawn‑Intervall (Sek.)',
+
+    'reg.title': 'Für Turnier registrieren',
+    'reg.alias': 'Alias:',
+    'reg.join': 'Am Turnier teilnehmen',
+    'reg.registered': 'Registrierte Spieler',
+
+    'tour.title': 'Turnier',
+    'tour.queue': 'Warteschlange',
+    'tour.next': 'Nächstes Spiel',
+    'tour.noMatch': 'Kein Spiel',
+    'tour.startNext': 'Nächstes Spiel starten',
+    'tour.new': 'Neues Turnier',
+    'tour.needTwo': 'Mindestens 2 Spieler zum Starten erforderlich',
+
+    'game.controls.start': 'Start',
+    'game.ai.toggle': 'KI‑Gegner',
+    'game.ai.difficulty': 'Schwierigkeitsgrad:',
+  'ai.diff.easy': 'Leicht',
+  'ai.diff.normal': 'Normal',
+  'ai.diff.hard': 'Schwer',
+    'game.overlay.start': 'DRÜCKE LEERTASTE ZUM STARTEN',
+    'game.overlay.win': '{name} GEWINNT! (Drücke R zum Zurücksetzen)',
+    'game.player1': 'Spieler 1',
+    'game.player2': 'Spieler 2',
+    'game.ai': 'KI',
+
+  'game.powerup.fast': 'Schneller!',
+  'game.powerup.slow': 'Langsamer!',
+  'game.powerup.big': 'Größerer Schläger!',
+  'game.powerup.small': 'Kleinerer Schläger des Gegners!',
+  'game.powerup.point': '+1 Punkt!',
+
+    'errors.alias.required': 'Alias erforderlich',
+    'errors.alias.invalid': '2–20 Zeichen: A-Z a-z 0-9 _ -',
+    'errors.alias.duplicate': 'Alias bereits registriert',
+
+    'home.welcome': 'Willkommen bei Atari Pong. Nutze die Navigation, um Spieler zu registrieren und ein Turnier zu starten.',
+    'common.vs': 'vs',
+    'tour.winner': 'Sieger',
+    'tour.match': 'Spiel {n}: {p1} vs {p2}',
+
+    'stats.title': 'Statistiken',
+    'stats.topPlayers': 'Top‑Spieler',
+    'stats.recentMatches': 'Letzte Spiele',
+    'stats.wins': 'Siege',
+    'stats.losses': 'Niederlagen',
+    'stats.rating': 'Wertung',
+    'stats.streak': 'Serie',
+    'stats.noData': 'Keine Daten',
+    'stats.reset': 'Statistiken zurücksetzen',
+  },
+};
+
+export function isLang(x: string): x is Lang {
+  return x === 'pl' || x === 'en' || x === 'de';
+}
+
+export function t(lang: Lang, key: string, vars?: Record<string, string | number>): string {
+  const dict = MESSAGES[lang] || MESSAGES[DEFAULT_LANG];
+  let s = dict[key] ?? MESSAGES.en[key] ?? key;
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) {
+      s = s.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+    }
+  }
+  return s;
+}
+
+export function applyTranslations(root: Document | HTMLElement, lang: Lang) {
+  const dict = MESSAGES[lang] || MESSAGES[DEFAULT_LANG];
+  const fallback = MESSAGES.en;
+  const nodes = (root instanceof Document ? root : root.ownerDocument!).querySelectorAll<HTMLElement>('[data-i18n]');
+  nodes.forEach((el) => {
+    const key = el.getAttribute('data-i18n');
+    if (!key) return;
+    const txt = dict[key] ?? fallback[key] ?? key;
+    // Don't clobber child controls like <span id=score1> inside; prefer replace only for leaf nodes
+    if (el.children.length === 0) el.textContent = txt;
+    else el.setAttribute('data-i18n-text', txt);
+  });
+}

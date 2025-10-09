@@ -9,56 +9,150 @@
   <div id=ui>
     <header class=title>
       <div class=main-nav>
-  <a href="/" data-link>Home</a>
-  <a href="/register" data-link>Register</a>
-  <a href="/tournament" data-link>Tournament</a>
-  <a href="/game" data-link>Play</a>
+  <a href="/" data-link data-i18n="nav.home">Home</a>
+  <a href="/register" data-link data-i18n="nav.register">Register</a>
+  <a href="/tournament" data-link data-i18n="nav.tournament">Tournament</a>
+  <a href="/game" data-link data-i18n="nav.play">Play</a>
+  <a href="/settings" data-link data-i18n="nav.settings">Settings</a>
+  <a href="/stats" data-link data-i18n="nav.stats">Stats</a>
+  <a href="/multiplayer" data-link data-i18n="nav.multiplayer">Multiplayer</a>
+  <label class="lang-picker"><span class="sr-only" data-i18n="lang.label">Language</span>
+    <select id="lang-select" aria-label="Language">
+      <option value="pl">PL</option>
+      <option value="en">EN</option>
+      <option value="de">DE</option>
+    </select>
+  </label>
       </div>
       <h1>ATARI <span class=neon>PONG</span></h1>
       <div class=scores>
-        <div class=player>PLAYER 1<br/><span id=score1>0</span></div>
+        <div class=player><span data-i18n="hdr.player1">PLAYER 1</span><br/><span id=score1>0</span></div>
         <div>
-          <h3>Upcoming schedule</h3>
+          <h3 data-i18n="hdr.upcoming">Upcoming schedule</h3>
           <ol id="schedule-list"></ol>
         </div>
         <div>
-          <h3>Bracket (auto-generated)</h3>
+          <h3 data-i18n="hdr.bracket">Bracket (auto-generated)</h3>
           <div id="bracket"></div>
         </div>
-        <div class=vs>VS</div>
-        <div class=player>PLAYER 2<br/><span id=score2>0</span></div>
+        <div class=vs data-i18n="hdr.vs">VS</div>
+        <div class=player><span data-i18n="hdr.player2">PLAYER 2</span><br/><span id=score2>0</span></div>
       </div>
-      <div class=stamp>EST. 1972</div>
+      <div class=stamp data-i18n="hdr.est">EST. 1972</div>
     </header>
 
     <main>
+  <section id="settings-page" class="page">
+        <h2 data-i18n="settings.title">Settings</h2>
+        <div class="settings-grid">
+          <label>
+            <span data-i18n="settings.scoreToWin">Score to win</span>
+            <input id="set-win-score" type="number" min="3" max="21" step="1" />
+          </label>
+          <label>
+            <span data-i18n="settings.paddleSpeed">Paddle speed</span>
+            <input id="set-paddle-speed" type="number" min="3" max="14" step="1" />
+          </label>
+          <label>
+            <span data-i18n="settings.paddleHeight">Paddle height</span>
+            <input id="set-paddle-height" type="number" min="40" max="160" step="2" />
+          </label>
+          <label>
+            <span data-i18n="settings.paddleWidth">Paddle width</span>
+            <input id="set-paddle-width" type="number" min="6" max="16" step="1" />
+          </label>
+          <label>
+            <span data-i18n="settings.ballInitX">Ball init speed X</span>
+            <input id="set-ball-init-x" type="number" min="2" max="8" step="1" />
+          </label>
+          <label>
+            <span data-i18n="settings.ballInitYRange">Ball init Y range</span>
+            <input id="set-ball-init-y" type="number" min="2" max="10" step="1" />
+          </label>
+          <label>
+            <span data-i18n="settings.ballIncFactor">Ball speed factor</span>
+            <input id="set-ball-inc" type="number" min="1.00" max="1.12" step="0.01" />
+          </label>
+          <label>
+            <span data-i18n="settings.ballMaxSpeed">Ball max speed</span>
+            <input id="set-ball-max" type="number" min="8" max="20" step="1" />
+          </label>
+          <label>
+            <span data-i18n="settings.powerups.enable">Power‑ups</span>
+            <input id="set-pu-enabled" type="checkbox" />
+          </label>
+          <label>
+            <span data-i18n="settings.powerups.interval">Spawn interval (sec)</span>
+            <input id="set-pu-interval" type="number" min="5" max="60" step="1" />
+          </label>
+          <label>
+            <span data-i18n="settings.theme">Theme</span>
+            <select id="set-theme">
+              <option value="neon" data-i18n="settings.theme.neon">Neon</option>
+              <option value="classic" data-i18n="settings.theme.classic">Classic</option>
+            </select>
+          </label>
+        </div>
+        <p class="settings-hint" data-i18n="settings.hint">Changes save automatically.</p>
+      </section>
+
+  <section id="multi-page" class="page">
+        <h2 data-i18n="multi.title">4-Player Mode</h2>
+        <p id="multi-msg" style="margin:6px 0" data-i18n="multi.needFour">At least 4 players required</p>
+        <div class="arena">
+          <canvas id="game4" width="600" height="600"></canvas>
+        </div>
+        <div class="controls">
+          <div class="kbd"><small data-i18n="multi.p1">Player 1 (left): W/S</small></div>
+          <div class="kbd"><small data-i18n="multi.p2">Player 2 (right): ↑/↓</small></div>
+          <div class="kbd"><small data-i18n="multi.p3">Player 3 (top): A/D</small></div>
+          <div class="kbd"><small data-i18n="multi.p4">Player 4 (bottom): J/L</small></div>
+        </div>
+      </section>
+
+  <section id="stats-page" class="page">
+        <h2 data-i18n="stats.title">Stats</h2>
+        <div class="stats-grid">
+          <div>
+            <h3 data-i18n="stats.topPlayers">Top players</h3>
+            <div id="stats-top" class="bar-list"></div>
+          </div>
+          <div>
+            <h3 data-i18n="stats.recentMatches">Recent matches</h3>
+            <ul id="stats-recent"></ul>
+            <div style="margin-top:10px">
+              <button id="stats-reset" data-i18n="stats.reset">Reset stats</button>
+            </div>
+          </div>
+        </div>
+      </section>
   <section id="register-page" class="page">
-        <h2>Register for tournament</h2>
+        <h2 data-i18n="reg.title">Register for tournament</h2>
         <form id=register-form>
-          <label for=alias>Alias:</label>
+          <label for=alias data-i18n="reg.alias">Alias:</label>
           <input id=alias name=alias required />
-          <button type=submit>Join tournament</button>
+          <button type=submit data-i18n="reg.join">Join tournament</button>
           <small id="alias-error" class="form-error" aria-live="polite"></small>
         </form>
         <div>
-          <h3>Registered players</h3>
+          <h3 data-i18n="reg.registered">Registered players</h3>
           <ul id=players-list></ul>
         </div>
       </section>
 
   <section id="tournament-page" class="page">
-        <h2>Tournament</h2>
+        <h2 data-i18n="tour.title">Tournament</h2>
         <div>
-          <button id=start-tournament>Start Next Match</button>
-          <button id=new-tournament>New Tournament</button>
+          <button id=start-tournament data-i18n="tour.startNext">Start Next Match</button>
+          <button id=new-tournament data-i18n="tour.new">New Tournament</button>
         </div>
         <div>
-          <h3>Queue</h3>
+          <h3 data-i18n="tour.queue">Queue</h3>
           <ol id=queue-list></ol>
         </div>
         <div>
-          <h3>Next match</h3>
-          <div id=next-match>No match</div>
+          <h3 data-i18n="tour.next">Next match</h3>
+          <div id=next-match data-i18n="tour.noMatch">No match</div>
         </div>
       </section>
 
@@ -67,19 +161,19 @@
           <canvas id="game" width="860" height="420"></canvas>
         </div>
         <div class=controls>
-          <div class="kbd">W / S<br/><small id="p1-alias">Player 1</small></div>
-          <div class="kbd">↑ / ↓<br/><small id="p2-alias">Player 2</small></div>
-         <div class=kbd>SPACE<br/><small>Start</small></div>
+          <div class="kbd">W / S<br/><small id="p1-alias" data-i18n="game.player1">Player 1</small></div>
+          <div class="kbd">↑ / ↓<br/><small id="p2-alias" data-i18n="game.player2">Player 2</small></div>
+         <div class=kbd>SPACE<br/><small data-i18n="game.controls.start">Start</small></div>
          <div class="ai-controls">
            <label>
-             <input type="checkbox" id="ai-toggle" /> AI Opponent
+             <input type="checkbox" id="ai-toggle" /> <span data-i18n="game.ai.toggle">AI Opponent</span>
            </label>
            <label class="ai-gap">
-             Difficulty:
+             <span data-i18n="game.ai.difficulty">Difficulty:</span>
              <select id="ai-difficulty">
-               <option value="EASY">Easy</option>
-               <option value="NORMAL" selected>Normal</option>
-               <option value="HARD">Hard</option>
+               <option value="EASY" data-i18n="ai.diff.easy">Easy</option>
+               <option value="NORMAL" data-i18n="ai.diff.normal" selected>Normal</option>
+               <option value="HARD" data-i18n="ai.diff.hard">Hard</option>
              </select>
            </label>
          </div>
@@ -87,7 +181,7 @@
       </section>
 
   <section id="home-page" class="page">
-        <p>Welcome to Atari Pong. Use the navigation to register players and start a tournament.</p>
+        <p data-i18n="home.welcome">Welcome to Atari Pong. Use the navigation to register players and start a tournament.</p>
       </section>
     </main>
   </div>
