@@ -6,10 +6,11 @@
     <title>Atari Pong</title>
   </head>
   <body>
+  <a href="#main" class="skip-link">Skip to main content</a>
   <div id=ui>
-    <header class=title>
-      <div class=main-nav>
-  <a href="/" data-link data-i18n="nav.home">Home</a>
+    <header class=title role="banner">
+      <nav class=main-nav role="navigation" aria-label="Main navigation">
+  <a href="/" data-link data-i18n="nav.home" aria-describedby="nav-desc">Home</a>
   <a href="/register" data-link data-i18n="nav.register">Register</a>
   <a href="/tournament" data-link data-i18n="nav.tournament">Tournament</a>
   <a href="/game" data-link data-i18n="nav.play">Play</a>
@@ -17,37 +18,38 @@
   <a href="/stats" data-link data-i18n="nav.stats">Stats</a>
   <a href="/multiplayer" data-link data-i18n="nav.multiplayer">Multiplayer</a>
   <label class="lang-picker"><span class="sr-only" data-i18n="lang.label">Language</span>
-    <select id="lang-select" aria-label="Language">
+    <select id="lang-select" aria-label="Language selection">
       <option value="pl">PL</option>
       <option value="en">EN</option>
       <option value="de">DE</option>
     </select>
   </label>
-      </div>
+      </nav>
+      <div id="nav-desc" class="sr-only">Navigate between different sections of the Pong game</div>
       <h1>ATARI <span class=neon>PONG</span></h1>
-      <div class=scores>
-        <div class=player><span data-i18n="hdr.player1">PLAYER 1</span><br/><span id=score1>0</span></div>
+      <section class=scores role="region" aria-label="Game scores and tournament information">
+        <div class=player><span data-i18n="hdr.player1">PLAYER 1</span><br/><span id=score1 aria-label="Player 1 score">0</span></div>
         <div>
           <h3 data-i18n="hdr.upcoming">Upcoming schedule</h3>
-          <ol id="schedule-list"></ol>
+          <ol id="schedule-list" aria-label="Tournament schedule"></ol>
         </div>
         <div>
           <h3 data-i18n="hdr.bracket">Bracket (auto-generated)</h3>
-          <div id="bracket"></div>
+          <div id="bracket" role="region" aria-label="Tournament bracket"></div>
         </div>
-        <div class=vs data-i18n="hdr.vs">VS</div>
-        <div class=player><span data-i18n="hdr.player2">PLAYER 2</span><br/><span id=score2>0</span></div>
-      </div>
+        <div class=vs data-i18n="hdr.vs" aria-hidden="true">VS</div>
+        <div class=player><span data-i18n="hdr.player2">PLAYER 2</span><br/><span id=score2 aria-label="Player 2 score">0</span></div>
+      </section>
       <div class=stamp data-i18n="hdr.est">EST. 1972</div>
     </header>
 
-    <main>
-  <section id="settings-page" class="page">
-        <h2 data-i18n="settings.title">Settings</h2>
-        <div class="settings-grid">
+    <main role="main" id="main">
+  <section id="settings-page" class="page" aria-labelledby="settings-title">
+        <h2 id="settings-title" data-i18n="settings.title">Settings</h2>
+        <div class="settings-grid" role="group" aria-labelledby="settings-title">
           <label>
             <span data-i18n="settings.scoreToWin">Score to win</span>
-            <input id="set-win-score" type="number" min="3" max="21" step="1" />
+            <input id="set-win-score" type="number" min="3" max="21" step="1" aria-describedby="settings-hint" />
           </label>
           <label>
             <span data-i18n="settings.paddleSpeed">Paddle speed</span>
@@ -93,16 +95,17 @@
             </select>
           </label>
         </div>
-        <p class="settings-hint" data-i18n="settings.hint">Changes save automatically.</p>
+        <p class="settings-hint" id="settings-hint" data-i18n="settings.hint">Changes save automatically.</p>
       </section>
 
-  <section id="multi-page" class="page">
-        <h2 data-i18n="multi.title">4-Player Mode</h2>
+  <section id="multi-page" class="page" aria-labelledby="multi-title">
+        <h2 id="multi-title" data-i18n="multi.title">4-Player Mode</h2>
         <p id="multi-msg" style="margin:6px 0" data-i18n="multi.needFour">At least 4 players required</p>
-        <div class="arena">
-          <canvas id="game4" width="600" height="600"></canvas>
+        <div class="arena" role="application" aria-label="4-Player Pong Game">
+          <canvas id="game4" width="600" height="600" aria-label="Game canvas for 4-player mode" tabindex="0"></canvas>
         </div>
-        <div class="controls">
+        <div class="controls" role="group" aria-labelledby="multi-controls-title">
+          <h3 id="multi-controls-title" class="sr-only">Game Controls</h3>
           <div class="kbd"><small data-i18n="multi.p1">Player 1 (left): W/S</small></div>
           <div class="kbd"><small data-i18n="multi.p2">Player 2 (right): ↑/↓</small></div>
           <div class="kbd"><small data-i18n="multi.p3">Player 3 (top): A/D</small></div>
@@ -110,77 +113,88 @@
         </div>
       </section>
 
-  <section id="stats-page" class="page">
-        <h2 data-i18n="stats.title">Stats</h2>
+  <section id="stats-page" class="page" aria-labelledby="stats-title">
+        <h2 id="stats-title" data-i18n="stats.title">Stats</h2>
         <div class="stats-grid">
           <div>
             <h3 data-i18n="stats.topPlayers">Top players</h3>
-            <div id="stats-top" class="bar-list"></div>
+            <div id="stats-top" class="bar-list" role="list" aria-label="Top players ranking"></div>
           </div>
           <div>
             <h3 data-i18n="stats.recentMatches">Recent matches</h3>
-            <ul id="stats-recent"></ul>
+            <ul id="stats-recent" aria-label="Recent match results"></ul>
             <div style="margin-top:10px">
-              <button id="stats-reset" data-i18n="stats.reset">Reset stats</button>
+              <button id="stats-reset" data-i18n="stats.reset" aria-describedby="reset-warning">Reset stats</button>
+              <div id="reset-warning" class="sr-only">This will permanently delete all statistics</div>
             </div>
           </div>
         </div>
       </section>
-  <section id="register-page" class="page">
-        <h2 data-i18n="reg.title">Register for tournament</h2>
-        <form id=register-form>
+  <section id="register-page" class="page" aria-labelledby="register-title">
+        <h2 id="register-title" data-i18n="reg.title">Register for tournament</h2>
+        <form id=register-form role="form" aria-labelledby="register-title">
           <label for=alias data-i18n="reg.alias">Alias:</label>
-          <input id=alias name=alias required />
+          <input id=alias name=alias required aria-describedby="alias-error alias-help" />
+          <div id="alias-help" class="sr-only">Enter 2-20 characters using letters, numbers, underscore or dash</div>
           <button type=submit data-i18n="reg.join">Join tournament</button>
-          <small id="alias-error" class="form-error" aria-live="polite"></small>
+          <small id="alias-error" class="form-error" aria-live="polite" role="alert"></small>
         </form>
         <div>
           <h3 data-i18n="reg.registered">Registered players</h3>
-          <ul id=players-list></ul>
+          <ul id=players-list aria-label="List of registered players"></ul>
         </div>
       </section>
 
-  <section id="tournament-page" class="page">
-        <h2 data-i18n="tour.title">Tournament</h2>
-        <div>
-          <button id=start-tournament data-i18n="tour.startNext">Start Next Match</button>
-          <button id=new-tournament data-i18n="tour.new">New Tournament</button>
+  <section id="tournament-page" class="page" aria-labelledby="tournament-title">
+        <h2 id="tournament-title" data-i18n="tour.title">Tournament</h2>
+        <div role="group" aria-labelledby="tournament-actions">
+          <h3 id="tournament-actions" class="sr-only">Tournament Actions</h3>
+          <button id=start-tournament data-i18n="tour.startNext" aria-describedby="start-help">Start Next Match</button>
+          <div id="start-help" class="sr-only">Begins the next scheduled tournament match</div>
+          <button id=new-tournament data-i18n="tour.new" aria-describedby="new-help">New Tournament</button>
+          <div id="new-help" class="sr-only">Resets all players and starts a fresh tournament</div>
         </div>
         <div>
           <h3 data-i18n="tour.queue">Queue</h3>
-          <ol id=queue-list></ol>
+          <ol id=queue-list aria-label="Tournament queue"></ol>
         </div>
         <div>
           <h3 data-i18n="tour.next">Next match</h3>
-          <div id=next-match data-i18n="tour.noMatch">No match</div>
+          <div id=next-match data-i18n="tour.noMatch" aria-live="polite">No match</div>
         </div>
       </section>
 
-  <section id="game-page" class="page">
-        <div class=arena>
-          <canvas id="game" width="860" height="420"></canvas>
+  <section id="game-page" class="page" aria-labelledby="game-title">
+        <h2 id="game-title" class="sr-only">Pong Game</h2>
+        <div class=arena role="application" aria-label="Pong Game">
+          <canvas id="game" width="860" height="420" aria-label="Game canvas" tabindex="0"></canvas>
         </div>
-        <div class=controls>
+        <div class=controls role="group" aria-labelledby="game-controls-title">
+          <h3 id="game-controls-title" class="sr-only">Game Controls</h3>
           <div class="kbd">W / S<br/><small id="p1-alias" data-i18n="game.player1">Player 1</small></div>
           <div class="kbd">↑ / ↓<br/><small id="p2-alias" data-i18n="game.player2">Player 2</small></div>
          <div class=kbd>SPACE<br/><small data-i18n="game.controls.start">Start</small></div>
-         <div class="ai-controls">
+         <div class="ai-controls" role="group" aria-labelledby="ai-settings-title">
+           <h4 id="ai-settings-title" class="sr-only">AI Settings</h4>
            <label>
-             <input type="checkbox" id="ai-toggle" /> <span data-i18n="game.ai.toggle">AI Opponent</span>
+             <input type="checkbox" id="ai-toggle" aria-describedby="ai-toggle-help" /> <span data-i18n="game.ai.toggle">AI Opponent</span>
            </label>
+           <div id="ai-toggle-help" class="sr-only">Enable computer opponent</div>
            <label class="ai-gap">
              <span data-i18n="game.ai.difficulty">Difficulty:</span>
-             <select id="ai-difficulty">
+             <select id="ai-difficulty" aria-describedby="ai-diff-help">
                <option value="EASY" data-i18n="ai.diff.easy">Easy</option>
                <option value="NORMAL" data-i18n="ai.diff.normal" selected>Normal</option>
                <option value="HARD" data-i18n="ai.diff.hard">Hard</option>
              </select>
            </label>
+           <div id="ai-diff-help" class="sr-only">Choose AI opponent difficulty level</div>
          </div>
         </div>
       </section>
 
-  <section id="home-page" class="page">
+  <section id="home-page" class="page" aria-labelledby="home-title">
+        <h2 id="home-title" class="sr-only">Welcome</h2>
         <p data-i18n="home.welcome">Welcome to Atari Pong. Use the navigation to register players and start a tournament.</p>
       </section>
     </main>

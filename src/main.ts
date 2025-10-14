@@ -6,6 +6,41 @@ import { DIFFICULTY_PRESETS } from './ai/difficultyPresets';
 import type { AIDifficulty } from './ai/aiTypes';
 import { nextAIPaddleY } from './ai/simpleAI';
 
+// --- ELK Logging ---
+async function sendLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, metadata?: Record<string, any>) {
+  // Only send logs in development/testing (avoid CORS in production)
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
+  // Local toggle: enable with localStorage.setItem('elk', 'on')
+  try {
+    if ((localStorage.getItem('elk') || 'off') !== 'on') return;
+  } catch {}
+  
+  try {
+    const sessionId = sessionStorage.getItem('sessionId') || (() => {
+      const id = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      try { sessionStorage.setItem('sessionId', id); } catch {}
+      return id;
+    })();
+
+    await fetch('http://localhost:8080', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        level,
+        message,
+        timestamp: new Date().toISOString(),
+        sessionId,
+        eventType: metadata?.eventType || 'general',
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        ...metadata
+      })
+    });
+  } catch (error) {
+    // Silently fail - logging should never break the app
+    console.debug('ELK log send failed:', error);
+  }
+}
 // Utility functions
 function sanitize(str: string): string {
   // Collapse multiple whitespace to single space, trim
@@ -213,6 +248,25 @@ const H = canvas?.height || 420;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
   }
+
+  // --- Graphics Effects State (moved earlier to avoid TDZ in draw) ---
+  type Particle = {
+    x: number; y: number; vx: number; vy: number;
+    life: number; maxLife: number; size: number;
+    color: string; type: 'spark' | 'trail' | 'explosion';
+  };
+
+  let particles: Particle[] = [];
+  let ballTrail: { x: number; y: number; life: number }[] = [];
+  let screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
+  // Power-up display state used by draw() (hoisted to avoid TDZ)
+  let pickup: { x:number; y:number; r:number; type: 'FAST'|'SLOW'|'BIG'|'SMALL'|'POINT' } | null = null;
+  let puMsg: { text: string; until: number } | null = null;
+  // Power-ups runtime toggles and timers (hoisted to avoid TDZ in settings)
+  let puEnabled = false;
+  let puIntervalMs = 12000;
+  let nextPuAt = 0;
+  let lastHit: 1|2|null = null;
 
   function draw() {
     if (!ctx) return;
@@ -572,13 +626,95 @@ function showRoute(path: string) {
 
 // --- Power-ups engine (1v1) ---
 type PowerUpType = 'FAST'|'SLOW'|'BIG'|'SMALL'|'POINT';
-let puEnabled = false;
-let puIntervalMs = 12000;
-let nextPuAt = 0;
-let pickup: { x:number;y:number;r:number;type:PowerUpType } | null = null;
-let puMsg: { text:string; until:number } | null = null;
-let lastHit: 1|2|null = null;
 
+// --- Graphics Effects System (definitions moved above draw) ---
+
+function addParticles(x: number, y: number, count: number, type: 'spark' | 'trail' | 'explosion', color = '#00ff6a') {
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const speed = 2 + Math.random() * 3;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 30 + Math.random() * 20,
+      maxLife: 50,
+      size: 2 + Math.random() * 3,
+      color,
+      type
+    });
+  }
+}
+
+function addScreenShake(intensity: number, duration: number) {
+  screenShake.intensity = Math.max(screenShake.intensity, intensity);
+  screenShake.duration = Math.max(screenShake.duration, duration);
+}
+
+function updateParticles() {
+  // Update particles
+  particles = particles.filter(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    p.vx *= 0.98; // friction
+    p.vy *= 0.98;
+    return p.life > 0;
+  });
+
+  // Update ball trail
+  if (running && !winner) {
+    ballTrail.push({ x: ball.x, y: ball.y, life: 15 });
+  }
+  ballTrail = ballTrail.filter(t => {
+    t.life--;
+    return t.life > 0;
+  });
+
+  // Update screen shake
+  if (screenShake.duration > 0) {
+    screenShake.duration--;
+    const intensity = screenShake.intensity * (screenShake.duration / 60);
+    screenShake.x = (Math.random() - 0.5) * intensity;
+    screenShake.y = (Math.random() - 0.5) * intensity;
+  } else {
+    screenShake.x = 0;
+    screenShake.y = 0;
+  }
+}
+
+function drawParticles() {
+  if (!ctx) return;
+  
+  // Draw ball trail
+  ballTrail.forEach((t, i) => {
+    const alpha = t.life / 15;
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.6;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, 2 * alpha, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // Draw particles
+  particles.forEach(p => {
+    const alpha = p.life / p.maxLife;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    
+    if (p.type === 'explosion') {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    }
+    ctx.restore();
+  });
+}
 function spawnPickup() {
   const margin = 50;
   const x = margin + Math.random() * (W - 2*margin);

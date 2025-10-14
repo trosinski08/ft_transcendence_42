@@ -1,7 +1,284 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Language selector */
 .lang-picker { margin-left: 12px; display: inline-flex; align-items: center; gap: 6px; }
 .lang-picker select { background:#000; border:1px solid rgba(0,255,106,0.26); color:#9fdc9f; padding:6px 8px; border-radius:8px; }
-.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+/* Screen reader only text */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Focus indicators for accessibility */
+a:focus,
+button:focus,
+input:focus,
+select:focus,
+canvas:focus {
+  outline: 3px solid #00ff6a;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --bg: #000;
+    --text: #fff;
+    --accent: #ffff00;
+    --border: #ffffff;
+  }
+  
+  body {
+    background: var(--bg);
+    color: var(--text);
+  }
+  
+  .neon {
+    color: var(--accent);
+    text-shadow: none;
+  }
+  
+  canvas {
+    border: 2px solid var(--border);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .neon {
+    animation: none !important;
+    text-shadow: 0 0 5px currentColor;
+  }
+}
+
+/* Enhanced keyboard navigation */
+.main-nav a:focus {
+  background: rgba(0, 255, 106, 0.2);
+  text-decoration: underline;
+}
+
+/* Skip to main content link */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #000;
+  color: #00ff6a;
+  padding: 8px;
+  z-index: 1000;
+  text-decoration: none;
+  border: 2px solid #00ff6a;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Improve button accessibility */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+button:focus:not(:disabled) {
+  background: rgba(0, 255, 106, 0.1);
+}
+
+/* Form validation styling */
+input:invalid {
+  border-color: #ff4444;
+}
+
+input:valid {
+  border-color: #00ff6a;
+}
+
+[aria-live] {
+  position: relative;
+}
+
+/* Canvas accessibility */
+canvas:focus {
+  box-shadow: 0 0 0 3px #00ff6a;
+}
+
+/* Advanced Graphics Effects */
+@keyframes neonPulse {
+  0%, 100% { text-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor; }
+  50% { text-shadow: 0 0 8px currentColor, 0 0 16px currentColor, 0 0 24px currentColor; }
+}
+
+@keyframes scoreFlash {
+  0% { transform: scale(1); color: inherit; }
+  50% { transform: scale(1.2); color: #00ff6a; text-shadow: 0 0 10px #00ff6a; }
+  100% { transform: scale(1); color: inherit; }
+}
+
+@keyframes powerupGlow {
+  0%, 100% { box-shadow: 0 0 5px currentColor; }
+  50% { box-shadow: 0 0 15px currentColor, 0 0 25px currentColor; }
+}
+
+@keyframes slideInFromLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes buttonHover {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1.02); }
+}
+
+/* Enhanced neon styling */
+.neon {
+  animation: neonPulse 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+/* Page transitions */
+.page {
+  animation: fadeInUp 0.3s ease-out;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.page:not(.visible) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Score animations */
+#score1, #score2 {
+  transition: all 0.3s ease-out;
+}
+
+#score1.flash, #score2.flash {
+  animation: scoreFlash 0.6s ease-out;
+}
+
+/* Interactive elements */
+button {
+  transition: all 0.2s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+button:hover {
+  animation: buttonHover 0.3s ease-out;
+  box-shadow: 0 0 15px rgba(0, 255, 106, 0.3);
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+/* Navigation enhancements */
+.main-nav a {
+  transition: all 0.2s ease-out;
+  position: relative;
+}
+
+.main-nav a::before {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: #00ff6a;
+  transition: all 0.3s ease-out;
+  transform: translateX(-50%);
+}
+
+.main-nav a:hover::before {
+  width: 100%;
+}
+
+/* Power-up effects */
+.settings-grid label:has(#set-pu-enabled:checked) {
+  animation: powerupGlow 2s ease-in-out infinite;
+}
+
+/* Form animations */
+input:focus {
+  transition: all 0.2s ease-out;
+  transform: scale(1.02);
+}
+
+/* Canvas wrapper effects */
+.arena {
+  position: relative;
+  transition: all 0.3s ease-out;
+}
+
+.arena:hover {
+  transform: scale(1.01);
+  filter: drop-shadow(0 0 20px rgba(0, 255, 106, 0.2));
+}
+
+/* Enhanced visual feedback */
+@keyframes ripple {
+  0% { transform: scale(0); opacity: 1; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(0, 255, 106, 0.6);
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+}
+
+/* Game state indicators */
+.game-status {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 5px 10px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #00ff6a;
+  border-radius: 4px;
+  color: #00ff6a;
+  font-size: 12px;
+  animation: fadeInUp 0.3s ease-out;
+}
 
 /* Stats */
 .stats-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -9,9 +286,6 @@
 .bar { background: rgba(0,255,106,0.15); border:1px solid rgba(0,255,106,0.35); border-radius:6px; height:22px; position:relative; overflow:hidden; }
 .bar > span { position:absolute; left:8px; top:2px; font-size:12px; color:#9fdc9f; }
 .bar > i { display:block; height:100%; background:#00ff6a; opacity:0.5; }
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 /* External Google Fonts import removed to satisfy CSP */
 :root{
