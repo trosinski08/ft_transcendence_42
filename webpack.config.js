@@ -17,7 +17,15 @@ module.exports = (env, argv) => {
       static: path.resolve(__dirname, 'dist'),
       host: '0.0.0.0',
       port: 3000,
-      hot: true
+      hot: true,
+      historyApiFallback: true,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          logLevel: 'warn'
+        }
+      }
     },
     resolve: {
       extensions: ['.ts', '.js']
