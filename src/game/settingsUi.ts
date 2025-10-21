@@ -1,0 +1,16 @@
+import { RULES, PADDLE as PDL, BALL as BL } from '../game/constants';
+
+export type Settings = {
+  winScore: number; paddleSpeed: number; paddleHeight: number; paddleWidth: number;
+  ballInitX: number; ballInitYRange: number; ballInc: number; ballMax: number;
+  puEnabled: boolean; puIntervalSec: number; theme: 'neon'|'classic';
+};
+
+const SETTINGS_KEY = 'ft_transcendence_settings_v1';
+export function defaultSettings(): Settings { return { winScore: RULES.WIN_SCORE, paddleSpeed: PDL.SPEED, paddleHeight: PDL.HEIGHT, paddleWidth: PDL.WIDTH, ballInitX: BL.INIT_SPEED_X, ballInitYRange: BL.INIT_SPEED_Y_RANGE, ballInc: BL.SPEED_INC_FACTOR, ballMax: BL.MAX_SPEED, puEnabled: true, puIntervalSec: 12, theme:'neon' }; }
+export function loadSettings(){ try{ const raw = localStorage.getItem(SETTINGS_KEY); if (!raw) return defaultSettings(); const parsed = JSON.parse(raw); return { ...defaultSettings(), ...parsed } as Settings; }catch{ return defaultSettings(); } }
+export function saveSettings(s:Settings){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }catch{} }
+
+export function syncSettingsUI(settings: Settings){ const byId=(id:string)=>document.getElementById(id) as HTMLInputElement|HTMLSelectElement|null; const map: Array<[string, keyof Settings]> = [['set-win-score','winScore'],['set-paddle-speed','paddleSpeed'],['set-paddle-height','paddleHeight'],['set-paddle-width','paddleWidth'],['set-ball-init-x','ballInitX'],['set-ball-init-y','ballInitYRange'],['set-ball-inc','ballInc'],['set-ball-max','ballMax'],['set-theme','theme']]; for(const [id,key] of map){ const el=byId(id); if(!el) continue; if(el instanceof HTMLSelectElement && key==='theme'){ (el as HTMLSelectElement).value = String((settings as any)[key]); } else if (el instanceof HTMLInputElement){ el.value = String((settings as any)[key] as any); } } const puChk = byId('set-pu-enabled') as HTMLInputElement|null; if(puChk) puChk.checked = !!settings.puEnabled; const puInt = byId('set-pu-interval') as HTMLInputElement|null; if(puInt) puInt.value = String(settings.puIntervalSec); }
+
+export function bindSettingsUI(settings: Settings, onChange:(settings:Settings)=>void){ const set=(key:keyof Settings,val:any)=>{ (settings as any)[key] = (key==='theme')? val : Number(val); saveSettings(settings); onChange(settings); }; const add=(id:string,key:keyof Settings)=>{ const el=document.getElementById(id) as HTMLInputElement|HTMLSelectElement|null; if(!el) return; el.addEventListener('change',()=> set(key,(el as any).value)); }; add('set-win-score','winScore'); add('set-paddle-speed','paddleSpeed'); add('set-paddle-height','paddleHeight'); add('set-paddle-width','paddleWidth'); add('set-ball-init-x','ballInitX'); add('set-ball-init-y','ballInitYRange'); add('set-ball-inc','ballInc'); add('set-ball-max','ballMax'); add('set-theme','theme'); const puChk=document.getElementById('set-pu-enabled') as HTMLInputElement|null; if(puChk) puChk.addEventListener('change',()=>{ settings.puEnabled = !!puChk.checked; saveSettings(settings); onChange(settings); }); const puInt=document.getElementById('set-pu-interval') as HTMLInputElement|null; if(puInt) puInt.addEventListener('change',()=>{ const v = Math.max(5,Math.min(60,Number(puInt.value)||12)); settings.puIntervalSec = v; saveSettings(settings); onChange(settings); }); }

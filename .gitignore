@@ -19,5 +19,5 @@ SUBJECT*
 nginx/ssl/server.key
 nginx/ssl/server.crt
 
-mock-*
+
 *.local.md

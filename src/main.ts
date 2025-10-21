@@ -1,10 +1,75 @@
 import './styles.css';
-import { fetchPlayers } from './apiClient';
 import { applyTranslations, DEFAULT_LANG, isLang, t, type Lang } from './i18n/translations';
 import { ARENA, PADDLE as PDL, BALL as BL, RULES } from './game/constants';
 import { DIFFICULTY_PRESETS } from './ai/difficultyPresets';
 import type { AIDifficulty } from './ai/aiTypes';
 import { nextAIPaddleY } from './ai/simpleAI';
+import {
+  schedule,
+  currentMatchIndex,
+  loadState,
+  recordMatch} from './state/gameState';
+import { initRouter, navigateTo } from './routing/router';
+import { keys, initInputHandlers } from './game/input';
+/* Minimal in-file physics shim to satisfy usages in main.ts:
+   Provides updateBall(...) returning { ball, lastHit?, scored? }
+   and resetBall(...) returning a new ball object. This avoids a
+   missing-module build error; replace with the real physics module
+   when available. */
+const physics: any = {
+  updateBall(ball: any, p1Y: number, p1H: number, p2Y: number, p2H: number, params: any) {
+    const res: any = { ball: { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, r: ball.r }, lastHit: null, scored: null };
+    // advance
+    res.ball.x += res.ball.vx;
+    res.ball.y += res.ball.vy;
+    // top/bottom bounce
+    if (res.ball.y - res.ball.r <= 0) { res.ball.y = res.ball.r; res.ball.vy = -res.ball.vy; }
+    if (res.ball.y + res.ball.r >= params.H) { res.ball.y = params.H - res.ball.r; res.ball.vy = -res.ball.vy; }
+    // paddle geometry
+    const leftPaddleX = params.ARENA_LEFT_X + params.paddleW;
+    const rightPaddleX = params.W - params.ARENA_RIGHT_X_OFFSET - params.paddleW;
+    // left paddle collision or left score
+    if (res.ball.x - res.ball.r <= leftPaddleX) {
+      if (res.ball.y >= p1Y && res.ball.y <= p1Y + p1H) {
+        res.ball.x = leftPaddleX + res.ball.r;
+        res.ball.vx = -res.ball.vx * params.BALL_SPEED_INC_FACTOR;
+        const speed = Math.min(Math.hypot(res.ball.vx, res.ball.vy), params.BALL_MAX_SPEED);
+        const ang = Math.atan2(res.ball.vy, res.ball.vx);
+        res.ball.vx = Math.cos(ang) * speed;
+        res.ball.vy = Math.sin(ang) * speed;
+        res.lastHit = 1;
+      } else {
+        res.scored = 'left';
+      }
+    }
+    // right paddle collision or right score
+    if (res.ball.x + res.ball.r >= rightPaddleX) {
+      if (res.ball.y >= p2Y && res.ball.y <= p2Y + p2H) {
+        res.ball.x = rightPaddleX - res.ball.r;
+        res.ball.vx = -res.ball.vx * params.BALL_SPEED_INC_FACTOR;
+        const speed = Math.min(Math.hypot(res.ball.vx, res.ball.vy), params.BALL_MAX_SPEED);
+        const ang = Math.atan2(res.ball.vy, res.ball.vx);
+        res.ball.vx = Math.cos(ang) * speed;
+        res.ball.vy = Math.sin(ang) * speed;
+        res.lastHit = 2;
+      } else {
+        res.scored = 'right';
+      }
+    }
+    return res;
+  },
+  resetBall(W: number, H: number, initX: number, initYRange: number, radius: number, direction: number) {
+    const vy = (Math.random() - 0.5) * initYRange;
+    return { x: W / 2, y: H / 2, vx: direction * initX, vy, r: radius };
+  }
+};
+import { drawMain } from './rendering/renderer';
+import { createRAFLoop } from './game/engine/gameLoop';
+import { initTournamentBindings, updatePlayers, updateQueue, renderSchedule, renderBracket } from './tournament/tournament';
+import { createFourController } from './game/fourPlayer';
+import * as effects from './game/effects';
+import * as aiControls from './game/aiControls';
+import * as settingsUi from './game/settingsUi';
 
 // --- ELK Logging ---
 async function sendLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, metadata?: Record<string, any>) {
@@ -41,11 +106,7 @@ async function sendLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, metada
     console.debug('ELK log send failed:', error);
   }
 }
-// Utility functions
-function sanitize(str: string): string {
-  // Collapse multiple whitespace to single space, trim
-  return str.replace(/\s+/g, ' ').trim();
-}
+// Utility functions moved to `src/utils`
 
 // Debug marker to confirm JS is executing in production
 try { console.log('[pong] script loaded'); document.body && document.body.setAttribute('data-js', 'ready'); } catch {}
@@ -123,86 +184,21 @@ const H = canvas?.height || 420;
   }
   let ball = { x: W / 2, y: H / 2, vx: BALL_INIT_SPEED_X, vy: 2, r: BALL_RADIUS };
 
-  // Schedule state must be defined before any function references it
-  let schedule: Array<{ p1: string; p2: string; status: 'pending' | 'playing' | 'done'; winner?: string }> = [];
-  let currentMatchIndex: number | null = null;
+  // Schedule state moved to `src/state/gameState`
 
-  // --- Stats state & types ---
-  type PlayerStats = { wins: number; losses: number; streak: number; rating: number };
-  type MatchEntry = { p1: string; p2: string; winner: string; ts: number; score: [number, number] };
-  const STATS_PLAYERS_KEY = 'ft_stats_players_v1';
-  const STATS_MATCHES_KEY = 'ft_stats_matches_v1';
-  const playerStats: Record<string, PlayerStats> = {};
-  const matchHistory: MatchEntry[] = [];
+  // Stats moved to `src/state/gameState`
 
-  function loadStats() {
-    try {
-      const ps = localStorage.getItem(STATS_PLAYERS_KEY);
-      const mh = localStorage.getItem(STATS_MATCHES_KEY);
-      if (ps) Object.assign(playerStats, JSON.parse(ps));
-      if (mh) matchHistory.push(...JSON.parse(mh));
-    } catch {}
-  }
-  function saveStats() {
-    try {
-      localStorage.setItem(STATS_PLAYERS_KEY, JSON.stringify(playerStats));
-      localStorage.setItem(STATS_MATCHES_KEY, JSON.stringify(matchHistory));
-    } catch {}
-  }
-  function resetStats() {
-    for (const k of Object.keys(playerStats)) delete playerStats[k];
-    matchHistory.length = 0;
-    try {
-      localStorage.removeItem(STATS_PLAYERS_KEY);
-      localStorage.removeItem(STATS_MATCHES_KEY);
-    } catch {}
-  }
-  function ensurePlayer(name: string) {
-    if (!playerStats[name]) playerStats[name] = { wins: 0, losses: 0, streak: 0, rating: 1000 };
-  }
-  function recordMatch(p1: string, p2: string, winnerName: string, s1: number, s2: number) {
-    ensurePlayer(p1); ensurePlayer(p2);
-    const loser = winnerName === p1 ? p2 : p1;
-    const wp = playerStats[winnerName];
-    const lp = playerStats[loser];
-    wp.wins += 1; wp.streak = Math.max(1, wp.streak + 1);
-    lp.losses += 1; lp.streak = Math.min(-1, lp.streak - 1);
-    // simple Elo-like update
-    const K = 24;
-    const Ra = wp.rating, Rb = lp.rating;
-    const Ea = 1 / (1 + Math.pow(10, (Rb - Ra) / 400));
-    const Eb = 1 - Ea;
-    wp.rating = Math.round(Ra + K * (1 - Ea));
-    lp.rating = Math.round(Rb + K * (0 - Eb));
-    matchHistory.push({ p1, p2, winner: winnerName, ts: Date.now(), score: [s1, s2] });
-    saveStats();
-  }
-
-  // --- Minimal AI state (feature-flagged) ---
-  let aiEnabled = false;
-  let aiDifficulty: AIDifficulty = 'NORMAL';
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const aiParam = params.get('ai');
-    if (aiParam && /^(1|true|on|yes)$/i.test(aiParam)) aiEnabled = true;
-    const diff = params.get('aiDifficulty');
-    if (diff && (diff.toUpperCase() in DIFFICULTY_PRESETS)) {
-      aiDifficulty = diff.toUpperCase() as AIDifficulty;
-    }
-  } catch {}
-
-  // Hydrate persisted AI settings (UI will sync below)
+  // AI state moved to src/game/aiControls
   const AI_STORAGE_KEY = 'ft_transcendence_ai_settings_v1';
-  try {
-    const raw = localStorage.getItem(AI_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (typeof parsed.enabled === 'boolean') aiEnabled = parsed.enabled;
-      if (typeof parsed.difficulty === 'string' && parsed.difficulty.toUpperCase() in DIFFICULTY_PRESETS) {
-        aiDifficulty = parsed.difficulty.toUpperCase() as AIDifficulty;
-      }
-    }
-  } catch {}
+  aiControls.loadAiState(AI_STORAGE_KEY);
+  // Wire AI UI; update P2 alias when AI toggle changes
+  aiControls.wireAiUi((enabled) => {
+    const p2a = document.getElementById('p2-alias');
+    if (!p2a) return;
+    if (enabled) p2a.textContent = t(currentLang, 'game.ai');
+    else if (currentMatchIndex != null && schedule[currentMatchIndex]) p2a.textContent = schedule[currentMatchIndex].p2;
+    else p2a.textContent = t(currentLang, 'game.player2');
+  }, (d) => { /* difficulty changed, no-op */ });
 
   function resetBall(direction: number = (Math.random() > 0.5 ? 1 : -1)) {
     const vy = (Math.random() - 0.5) * BALL_INIT_SPEED_Y_RANGE;
@@ -268,111 +264,48 @@ const H = canvas?.height || 420;
   let nextPuAt = 0;
   let lastHit: 1|2|null = null;
 
-  function draw() {
-    if (!ctx) return;
-    clear();
-    // Paddles
-    ctx.fillStyle = '#0f0';
-    ctx.fillRect(ARENA.LEFT_X, p1Y, paddleW, p1H);
-    ctx.fillRect(W - ARENA.RIGHT_X_OFFSET - paddleW, p2Y, paddleW, p2H);
-    // Ball
-    ctx.beginPath();
-    ctx.fillStyle = '#fff';
-    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-    ctx.fill();
-    // Power-ups on field
-    if (pickup) {
-      ctx.beginPath();
-      const col = pickup.type === 'FAST' ? '#ffd166' : pickup.type === 'SLOW' ? '#118ab2' : pickup.type === 'BIG' ? '#06d6a0' : pickup.type === 'SMALL' ? '#ef476f' : '#a78bfa';
-      ctx.fillStyle = col;
-      ctx.arc(pickup.x, pickup.y, pickup.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    // Center line (cosmetic)
-    ctx.strokeStyle = 'rgba(0,255,106,0.35)';
-    ctx.setLineDash([10, 14]);
-    ctx.beginPath();
-    ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
-    ctx.setLineDash([]);
-    // Overlay messages
-    if (winner) {
-      ctx.fillStyle = '#00ff6a';
-      ctx.font = '24px monospace';
-      ctx.textAlign = 'center';
-  ctx.fillText(t(currentLang, 'game.overlay.win', { name: winner || 'Player' }), W / 2, H / 2);
-    } else if (!running && firstStartShown) {
-      ctx.fillStyle = '#0f0';
-      ctx.font = '16px monospace';
-      ctx.textAlign = 'center';
-  ctx.fillText(t(currentLang, 'game.overlay.start'), W / 2, H / 2);
-    }
-    // transient power-up message
-    if (puMsg && performance.now() < puMsg.until) {
-      ctx.fillStyle = '#9fdc9f';
-      ctx.font = '14px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(puMsg.text, W/2, 28);
-    }
-  }
+  // drawing delegated to renderer
 
   function step() {
     if (running && !winner) {
-      ball.x += ball.vx;
-      ball.y += ball.vy;
-      // Wall collision
-      if (ball.y < ball.r || ball.y > H - ball.r) ball.vy *= -1;
-      // Paddle collisions
-      if (ball.x - ball.r < ARENA.LEFT_X + paddleW && ball.y > p1Y && ball.y < p1Y + p1H) {
-        ball.vx = Math.min(Math.abs(ball.vx) * BALL_SPEED_INC_FACTOR, BALL_MAX_SPEED);
-        lastHit = 1;
-      }
-      if (ball.x + ball.r > W - ARENA.RIGHT_X_OFFSET - paddleW && ball.y > p2Y && ball.y < p2Y + p2H) {
-        ball.vx = -Math.min(Math.abs(ball.vx) * BALL_SPEED_INC_FACTOR, BALL_MAX_SPEED);
-        lastHit = 2;
-      }
+      // delegate movement/collision to physics
+      const physicsParams = {
+        W, H,
+        ARENA_LEFT_X: ARENA.LEFT_X,
+        ARENA_RIGHT_X_OFFSET: ARENA.RIGHT_X_OFFSET,
+        paddleW,
+        BALL_SPEED_INC_FACTOR,
+        BALL_MAX_SPEED
+      };
+  const result = physics.updateBall(ball, p1Y, p1H, p2Y, p2H, physicsParams);
+  ball = result.ball;
+  if (result.lastHit) lastHit = result.lastHit;
       // Power-up spawn and pickup
       handlePowerUps();
-      // Scoring
-      if (ball.x < -ball.r) {
+      // Scoring: update scores if physics reported scoring
+      if (result.scored === 'left') {
         score2 += 1; updateScoreUI();
         afterScoreUpdateObserver();
-  if (score2 >= WIN_SCORE) { winner = (document.getElementById('p2-alias')?.textContent || t(currentLang, 'game.player2')); }
-        resetBall(1);
-      } else if (ball.x > W + ball.r) {
+        if (score2 >= WIN_SCORE) { winner = (document.getElementById('p2-alias')?.textContent || t(currentLang, 'game.player2')); }
+  ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS, 1);
+      } else if (result.scored === 'right') {
         score1 += 1; updateScoreUI();
         afterScoreUpdateObserver();
-  if (score1 >= WIN_SCORE) { winner = (document.getElementById('p1-alias')?.textContent || t(currentLang, 'game.player1')); }
-        resetBall(-1);
+        if (score1 >= WIN_SCORE) { winner = (document.getElementById('p1-alias')?.textContent || t(currentLang, 'game.player1')); }
+  ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS, -1);
       }
     }
-    draw();
-    requestAnimationFrame(step);
+    drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
   }
 
-  const keys = new Set<string>();
-  window.addEventListener('keydown', (e) => {
-    keys.add(e.code);
-    if (e.code === 'Space') {
-      if (winner) return; // ignore after game end
-      toggleRunning();
-    }
-    if (e.code === 'KeyA') {
-      aiEnabled = !aiEnabled;
-      syncAIControls();
-      updateP2Alias();
-      persistAI();
-    }
-    if (e.code === 'KeyR') {
-      resetMatch();
-    }
-  });
-  window.addEventListener('keyup', (e) => keys.delete(e.code));
+  // Initialize global input handlers
+  initInputHandlers(() => { if (!winner) toggleRunning(); }, () => resetMatch(), () => { aiControls.setAiEnabled(!aiControls.getAiEnabled()); });
 
   function handleInput() {
   if (keys.has('KeyW')) p1Y -= PADDLE_SPEED;
   if (keys.has('KeyS')) p1Y += PADDLE_SPEED;
-    if (aiEnabled) {
-      const cfg = DIFFICULTY_PRESETS[aiDifficulty];
+    if (aiControls.getAiEnabled()) {
+      const cfg = DIFFICULTY_PRESETS[aiControls.getAiDifficulty()];
       const nextY = nextAIPaddleY(
         { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, r: ball.r },
   { y: p2Y, height: p2H },
@@ -392,52 +325,13 @@ const H = canvas?.height || 420;
   }
 
   updateScoreUI();
-  draw();
+  drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
   handleInput();
-  requestAnimationFrame(step);
+  // start main RAF loop via createRAFLoop below
 
   (window as any).game = { start: () => setRunning(true), stop: () => setRunning(false) };
 
-  // --- AI UI controls + persistence ---
-  const aiToggle = document.getElementById('ai-toggle') as HTMLInputElement | null;
-  const aiSelect = document.getElementById('ai-difficulty') as HTMLSelectElement | null;
-
-  function persistAI() {
-    try {
-      localStorage.setItem(AI_STORAGE_KEY, JSON.stringify({ enabled: aiEnabled, difficulty: aiDifficulty }));
-    } catch {}
-  }
-
-  function syncAIControls() {
-    if (aiToggle) aiToggle.checked = aiEnabled;
-    if (aiSelect) aiSelect.value = aiDifficulty;
-  }
-
-  function updateP2Alias() {
-    const p2a = document.getElementById('p2-alias');
-    if (!p2a) return;
-  if (aiEnabled) p2a.textContent = t(currentLang, 'game.ai');
-    else if (currentMatchIndex != null && schedule[currentMatchIndex]) p2a.textContent = schedule[currentMatchIndex].p2;
-  else p2a.textContent = t(currentLang, 'game.player2');
-  }
-
-  if (aiToggle) {
-    aiToggle.addEventListener('change', () => {
-      aiEnabled = aiToggle.checked;
-      updateP2Alias();
-      persistAI();
-    });
-  }
-  if (aiSelect) {
-    aiSelect.addEventListener('change', () => {
-      aiDifficulty = (aiSelect.value || 'NORMAL') as AIDifficulty;
-      persistAI();
-    });
-  }
-
-  // Initial sync for UI + alias
-  syncAIControls();
-  updateP2Alias();
+  // AI UI wiring handled by src/game/aiControls
 
 // --- Customization: rules & theme ---
 type Settings = {
@@ -572,57 +466,7 @@ syncSettingsUI();
 bindSettingsUI();
 
 // --- SPA + Tournament state ---
-const pages = {
-  home: document.getElementById('home-page') as HTMLElement | null,
-  register: document.getElementById('register-page') as HTMLElement | null,
-  tournament: document.getElementById('tournament-page') as HTMLElement | null,
-  game: document.getElementById('game-page') as HTMLElement | null,
-  settings: document.getElementById('settings-page') as HTMLElement | null,
-  stats: document.getElementById('stats-page') as HTMLElement | null,
-  multi: document.getElementById('multi-page') as HTMLElement | null,
-};
-
-const STORAGE_KEY = 'ft_transcendence_players_v1';
-const QUEUE_KEY = 'ft_transcendence_queue_v1';
-const players: string[] = [];
-const queue: string[] = [];
-
-function showRoute(path: string) {
-  try { console.log('[nav] showRoute ->', path); } catch {}
-  [pages.home, pages.register, pages.tournament, pages.game, pages.settings, pages.stats, pages.multi].forEach((p) => {
-    if (p) { p.classList.remove('visible'); }
-  });
-  switch (path) {
-    case '/':
-      if (pages.home) pages.home.classList.add('visible');
-      break;
-    case '/settings':
-      if (pages.settings) pages.settings.classList.add('visible');
-      break;
-    case '/stats':
-      if (pages.stats) { pages.stats.classList.add('visible'); try { (renderStatsPage as any) && renderStatsPage(); } catch {} }
-      break;
-    case '/register':
-      if (pages.register) pages.register.classList.add('visible');
-  break;
-    case '/tournament':
-      if (pages.tournament) pages.tournament.classList.add('visible');
-      break;
-    case '/game':
-      if (pages.game) pages.game.classList.add('visible');
-      break;
-    case '/multiplayer':
-      if (pages.multi) { pages.multi.classList.add('visible'); startFourPlayerIfReady(); }
-      break;
-    default:
-      // fallback to home for unknown paths
-      if (pages.home) pages.home.classList.add('visible');
-      path = '/';
-  }
-  try { document.body && document.body.setAttribute('data-route', path); } catch {}
-  try { applyTranslations(document, currentLang); } catch {}
-  return path; // return possibly normalized path
-}
+// Router handles view switching and translation application
 
 // --- Power-ups engine (1v1) ---
 type PowerUpType = 'FAST'|'SLOW'|'BIG'|'SMALL'|'POINT';
@@ -800,349 +644,12 @@ function handlePowerUps() {
   }
 }
 
-// --- 4-player mode (front-only) ---
-type P4 = { x: number; y: number; w: number; h: number; dir: 'H'|'V'; color: string; score: number; alias: string };
-let p4ctx: CanvasRenderingContext2D | null = null;
-let p4W = 600, p4H = 600;
-let p4Ball = { x: 300, y: 300, vx: 4, vy: 3, r: 6 };
-let P4_SPEED = Math.max(3, Math.min(10, PADDLE_SPEED));
-let p4Players: P4[] = [];
-let p4Running = false;
-let p4Winner: string | null = null;
-let p4FirstStart = true;
+// 4-player mode moved to src/game/fourPlayer
 
-function initFourPlayers() {
-  const cv = document.getElementById('game4') as HTMLCanvasElement | null;
-  p4ctx = cv?.getContext('2d') || null;
-  if (!cv || !p4ctx) return false;
-  p4W = cv.width; p4H = cv.height;
-  const names = players.slice(0,4);
-  p4Players = [
-    { x: 16, y: p4H/2 - 40, w: 10, h: 80, dir: 'V', color: '#00ff6a', score:0, alias: names[0] || 'P1' }, // left
-    { x: p4W-26, y: p4H/2 - 40, w: 10, h: 80, dir: 'V', color: '#00c3ff', score:0, alias: names[1] || 'P2' }, // right
-    { x: p4W/2 - 40, y: 16, w: 80, h: 10, dir: 'H', color: '#ffa500', score:0, alias: names[2] || 'P3' }, // top
-    { x: p4W/2 - 40, y: p4H-26, w: 80, h: 10, dir: 'H', color: '#ff4d4f', score:0, alias: names[3] || 'P4' }, // bottom
-  ];
-  p4Ball = { x: p4W/2, y: p4H/2, vx: 4, vy: 3, r: 6 };
-  p4Winner = null;
-  p4FirstStart = true;
-  return true;
-}
+// Router functions provided by `src/routing/router`
 
-function drawFour() {
-  if (!p4ctx) return;
-  p4ctx.fillStyle = '#000'; p4ctx.fillRect(0,0,p4W,p4H);
-  // arena border
-  p4ctx.strokeStyle = 'rgba(0,255,106,0.6)'; p4ctx.lineWidth = 4; p4ctx.strokeRect(2,2,p4W-4,p4H-4);
-  // paddles
-  p4Players.forEach(p => { p4ctx.fillStyle = p.color; p4ctx.fillRect(p.x, p.y, p.w, p.h); });
-  // ball
-  p4ctx.beginPath(); p4ctx.fillStyle = '#fff'; p4ctx.arc(p4Ball.x, p4Ball.y, p4Ball.r, 0, Math.PI*2); p4ctx.fill();
-  // scores
-  p4ctx.fillStyle = '#9fdc9f'; p4ctx.font='12px monospace';
-  p4ctx.fillText(`${p4Players[0].alias}: ${p4Players[0].score}`, 10, 12);
-  p4ctx.fillText(`${p4Players[1].alias}: ${p4Players[1].score}`, p4W-150, 12);
-  p4ctx.fillText(`${p4Players[2].alias}: ${p4Players[2].score}`, 10, p4H-8);
-  p4ctx.fillText(`${p4Players[3].alias}: ${p4Players[3].score}`, p4W-150, p4H-8);
+// load/save state moved to `src/state/gameState`
 
-  // overlays
-  p4ctx.textAlign = 'center';
-  if (p4Winner) {
-    p4ctx.fillStyle = '#00ff6a';
-    p4ctx.font = '20px monospace';
-    p4ctx.fillText(t(currentLang, 'multi.win', { name: p4Winner }), p4W/2, p4H/2);
-    p4ctx.font = '12px monospace';
-    p4ctx.fillStyle = '#9fdc9f';
-    p4ctx.fillText(t(currentLang, 'multi.resetHint'), p4W/2, p4H/2 + 24);
-  } else if (!p4Running && p4FirstStart) {
-    p4ctx.fillStyle = '#9fdc9f';
-    p4ctx.font = '14px monospace';
-    p4ctx.fillText(t(currentLang, 'multi.start'), p4W/2, p4H/2);
-  }
-}
-
-function stepFour() {
-  if (!p4Running) return;
-  // move ball
-  p4Ball.x += p4Ball.vx; p4Ball.y += p4Ball.vy;
-  // reflect on walls if not scored
-  let scoredIndex: number | null = null;
-  // check paddles
-  p4Players.forEach((p, idx) => {
-    if (p.dir==='V') {
-      // left/right goal lines
-      const inY = p4Ball.y > p.y && p4Ball.y < p.y + p.h;
-      if (idx===0 && p4Ball.x - p4Ball.r < p.x + p.w && inY) { p4Ball.vx = Math.abs(p4Ball.vx); }
-      if (idx===1 && p4Ball.x + p4Ball.r > p.x && inY) { p4Ball.vx = -Math.abs(p4Ball.vx); }
-      if (idx===0 && p4Ball.x < 0) scoredIndex = 1;
-      if (idx===1 && p4Ball.x > p4W) scoredIndex = 0;
-    } else {
-      const inX = p4Ball.x > p.x && p4Ball.x < p.x + p.w;
-      if (idx===2 && p4Ball.y - p4Ball.r < p.y + p.h && inX) { p4Ball.vy = Math.abs(p4Ball.vy); }
-      if (idx===3 && p4Ball.y + p4Ball.r > p.y && inX) { p4Ball.vy = -Math.abs(p4Ball.vy); }
-      if (idx===2 && p4Ball.y < 0) scoredIndex = 3;
-      if (idx===3 && p4Ball.y > p4H) scoredIndex = 2;
-    }
-  });
-  if (scoredIndex!=null) {
-    p4Players[scoredIndex].score += 1;
-    // check win
-    if (!p4Winner && p4Players[scoredIndex].score >= WIN_SCORE) {
-      p4Winner = p4Players[scoredIndex].alias || `P${scoredIndex+1}`;
-      p4Running = false;
-      // record stats: treat as winner vs each other player
-      try {
-        const wScore = p4Players[scoredIndex].score;
-        p4Players.forEach((pl, idx) => {
-          if (idx === scoredIndex) return;
-          const lScore = pl.score;
-          // ensure non-empty aliases for stats
-          const w = p4Winner as string;
-          const l = pl.alias || `P${idx+1}`;
-          recordMatch(w, l, w, wScore, lScore);
-        });
-      } catch {}
-    }
-    // reset ball towards the scorer
-    const dirX = scoredIndex===1 ? -1 : scoredIndex===0 ? 1 : 0;
-    const dirY = scoredIndex===3 ? -1 : scoredIndex===2 ? 1 : 0;
-    p4Ball = { x: p4W/2, y: p4H/2, vx: (dirX||1)*4, vy: (dirY||1)*3, r: 6 };
-  }
-  drawFour();
-  requestAnimationFrame(stepFour);
-}
-
-function startFourPlayerIfReady() {
-  const msg = document.getElementById('multi-msg');
-  if (players.length < 4) { if (msg) msg.style.display='block'; return; }
-  if (msg) msg.style.display='none';
-  if (!initFourPlayers()) return;
-  if (!p4Running) { p4Running = false; drawFour(); p4FirstStart = true; requestAnimationFrame(stepFour); }
-}
-
-// controls mapping for 4p
-document.addEventListener('keydown', (e) => {
-  if (!p4Players.length) return;
-  switch (e.code) {
-    case 'KeyW': p4Players[0].y -= P4_SPEED; break;
-    case 'KeyS': p4Players[0].y += P4_SPEED; break;
-    case 'ArrowUp': p4Players[1].y -= P4_SPEED; break;
-    case 'ArrowDown': p4Players[1].y += P4_SPEED; break;
-    case 'KeyA': p4Players[2].x -= P4_SPEED; break;
-    case 'KeyD': p4Players[2].x += P4_SPEED; break;
-    case 'KeyJ': p4Players[3].x -= P4_SPEED; break;
-    case 'KeyL': p4Players[3].x += P4_SPEED; break;
-    case 'Space':
-      // prevent page scroll on space in some browsers
-      e.preventDefault();
-      if (!p4Winner) { p4Running = !p4Running; p4FirstStart = false; if (p4Running) requestAnimationFrame(stepFour); else drawFour(); }
-      break;
-    case 'KeyR':
-      // reset 4p
-      p4Players.forEach(p => p.score = 0);
-      p4Winner = null;
-      p4Ball = { x: p4W/2, y: p4H/2, vx: 4, vy: 3, r: 6 };
-      p4Running = false; p4FirstStart = true; drawFour();
-      break;
-  }
-  // clamp paddles
-  if (p4Players[0]) p4Players[0].y = Math.max(8, Math.min(p4H - p4Players[0].h - 8, p4Players[0].y));
-  if (p4Players[1]) p4Players[1].y = Math.max(8, Math.min(p4H - p4Players[1].h - 8, p4Players[1].y));
-  if (p4Players[2]) p4Players[2].x = Math.max(8, Math.min(p4W - p4Players[2].w - 8, p4Players[2].x));
-  if (p4Players[3]) p4Players[3].x = Math.max(8, Math.min(p4W - p4Players[3].w - 8, p4Players[3].x));
-});
-
-function navigateTo(path: string, replace = false) {
-  const normalized = showRoute(path);
-  if (normalized === window.location.pathname) {
-    // if only hash/query changed we might handle separately later
-    if (replace) history.replaceState({}, '', normalized);
-    return;
-  }
-  if (replace) history.replaceState({}, '', normalized); else history.pushState({}, '', normalized);
-  try { console.log('[nav] navigateTo ->', normalized); } catch {}
-}
-
-// Handle browser back/forward
-window.addEventListener('popstate', () => {
-  showRoute(window.location.pathname);
-});
-
-document.addEventListener('click', (e) => {
-  const target = e.target as HTMLElement;
-  const a = (target.closest && target.closest('[data-link]')) as HTMLAnchorElement | null;
-  if (a) {
-    e.preventDefault();
-    try { console.log('[nav] anchor click', a.getAttribute('href')); } catch {}
-    navigateTo(a.getAttribute('href') || '/');
-    return;
-  }
-  const btn = (target.closest && target.closest('[data-href]')) as HTMLButtonElement | null;
-  if (btn) {
-    e.preventDefault();
-    try { console.log('[nav] button click', btn.getAttribute('data-href')); } catch {}
-    navigateTo(btn.getAttribute('data-href') || '/');
-  }
-
-  const reset = (target.closest && target.closest('#stats-reset')) as HTMLButtonElement | null;
-  if (reset) {
-    e.preventDefault();
-    resetStats();
-    try { renderStatsPage(); } catch {}
-  }
-});
-
-async function loadState() {
-  // Attempt remote players first (non-blocking fallback)
-  let remoteUsed = false;
-  try {
-    const remote = await fetchPlayers();
-    if (remote && Array.isArray(remote) && remote.length) {
-      remote.forEach(r => { if (!players.includes(r.alias)) players.push(r.alias); });
-      // Build a naive queue from remote player order
-      players.forEach(p => { if (!queue.includes(p)) queue.push(p); });
-      remoteUsed = true;
-      try { console.info('[api] loaded players from /api/players'); } catch {}
-    }
-  } catch {}
-  if (!remoteUsed) {
-    try {
-      const p = localStorage.getItem(STORAGE_KEY);
-      const q = localStorage.getItem(QUEUE_KEY);
-      if (p) JSON.parse(p).forEach((x: string) => players.push(x));
-      if (q) JSON.parse(q).forEach((x: string) => queue.push(x));
-    } catch (e) {
-      console.warn('Failed to load stored players', e);
-    }
-  }
-}
-function saveState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-  } catch (e) {
-    console.warn('Failed to save players', e);
-  }
-}
-
-function updatePlayers() {
-  const ul = document.getElementById('players-list');
-  ul.innerHTML = '';
-  players.forEach((p) => {
-    const li = document.createElement('li');
-    li.textContent = p;
-    ul.appendChild(li);
-  });
-}
-function updateQueue() {
-  const ol = document.getElementById('queue-list');
-  ol.innerHTML = '';
-  queue.forEach((p) => {
-    const li = document.createElement('li');
-    li.textContent = p;
-    ol.appendChild(li);
-  });
-}
-
-function buildSchedule() {
-  schedule = [];
-  // Simple round-robin pairing or sequential pairing if even count
-  const playersCopy = [...players];
-  if (playersCopy.length < 2) return;
-  // Pair sequentially for MVP
-  for (let i = 0; i < playersCopy.length - 1; i += 2) {
-    if (playersCopy[i + 1]) schedule.push({ p1: playersCopy[i], p2: playersCopy[i + 1], status: 'pending' });
-  }
-  renderSchedule();
-  renderBracket();
-}
-
-function renderSchedule() {
-  const list = document.getElementById('schedule-list');
-  if (!list) return;
-  list.innerHTML = '';
-  schedule.forEach((m, idx) => {
-    const li = document.createElement('li');
-    const label = `${m.p1} ${t(currentLang, 'common.vs')} ${m.p2}`;
-    let statusChar = '';
-    if (m.status === 'pending') statusChar = '⏳';
-    else if (m.status === 'playing') statusChar = '▶';
-    else if (m.status === 'done') statusChar = `✔${m.winner ? ' ' + t(currentLang, 'tour.winner') + ': ' + m.winner : ''}`;
-    li.textContent = `${label} ${statusChar}`;
-    if (idx === currentMatchIndex) li.style.fontWeight = 'bold';
-    list.appendChild(li);
-  });
-}
-
-function renderBracket() {
-  const container = document.getElementById('bracket');
-  if (!container) return;
-  container.innerHTML = '';
-  // MVP: simple vertical list; future: tree layout
-  schedule.forEach((m, idx) => {
-    const div = document.createElement('div');
-    div.style.marginBottom = '6px';
-    div.textContent = t(currentLang, 'tour.match', { n: idx + 1, p1: m.p1, p2: m.p2 }) + (m.status === 'done' ? ' → ' + (m.winner || '') : '');
-    container.appendChild(div);
-  });
-}
-
-// Stats page renderer
-function renderStatsPage() {
-  const top = document.getElementById('stats-top');
-  const recent = document.getElementById('stats-recent');
-  if (!top || !recent) return;
-  top.innerHTML = '';
-  recent.innerHTML = '';
-  const entries = Object.entries(playerStats);
-  if (!entries.length) {
-    const p = document.createElement('p');
-    p.textContent = t(currentLang, 'stats.noData');
-    top.appendChild(p);
-  } else {
-    const sorted = entries.sort((a, b) => b[1].rating - a[1].rating).slice(0, 10);
-    const maxRating = Math.max(...sorted.map(([, s]) => s.rating), 1200);
-    sorted.forEach(([name, s]) => {
-      const row = document.createElement('div'); row.className = 'bar';
-      const fill = document.createElement('i');
-      const pct = Math.max(0.1, s.rating / maxRating);
-      fill.style.width = (pct * 100).toFixed(1) + '%';
-      const label = document.createElement('span');
-      label.textContent = `${name} • ${t(currentLang, 'stats.rating')}: ${s.rating} • ${t(currentLang, 'stats.wins')}: ${s.wins} • ${t(currentLang, 'stats.losses')}: ${s.losses}`;
-      row.appendChild(fill); row.appendChild(label); top.appendChild(row);
-    });
-  }
-  const recentTen = [...matchHistory].sort((a,b)=>b.ts-a.ts).slice(0, 10);
-  recentTen.forEach(m => {
-    const li = document.createElement('li');
-    const date = new Date(m.ts).toLocaleString();
-    li.textContent = `${date}: ${m.p1} ${m.score[0]} - ${m.score[1]} ${m.p2} → ${t(currentLang, 'tour.winner')}: ${m.winner}`;
-    recent.appendChild(li);
-  });
-}
-
-function startNextScheduledMatch() {
-  if (!schedule.length) return;
-  // Find next pending
-  const nextIdx = schedule.findIndex(m => m.status === 'pending');
-  if (nextIdx === -1) return; // none left
-  currentMatchIndex = nextIdx;
-  schedule[nextIdx].status = 'playing';
-  const { p1, p2 } = schedule[nextIdx];
-  const next = document.getElementById('next-match');
-  if (next) next.textContent = `${p1} vs ${p2}`;
-  const p1a = document.getElementById('p1-alias');
-  const p2a = document.getElementById('p2-alias');
-  if (p1a) p1a.textContent = p1;
-  if (p2a) p2a.textContent = p2;
-  // Reset current game state
-  resetMatch();
-  renderSchedule();
-  renderBracket();
-  navigateTo('/game');
-  // Reflect AI alias if enabled
-  try { (updateP2Alias as any) && updateP2Alias(); } catch {}
-}
 
 // Hook into winner assignment (poll each frame)
 function afterScoreUpdateObserver() {
@@ -1159,95 +666,30 @@ function afterScoreUpdateObserver() {
   }
 }
 
-const registerForm = document.getElementById('register-form') as HTMLFormElement | null;
-if (registerForm) {
-  registerForm.addEventListener('submit', (ev) => {
-    ev.preventDefault();
-    const inputEl = document.getElementById('alias') as HTMLInputElement;
-    const errEl = document.getElementById('alias-error') as HTMLElement | null;
-    const raw = inputEl.value;
-    const sanitized = sanitize(raw);
-    const alias = sanitized; // we only trim/collapse whitespace; disallow spaces below
-    const ALIAS_RE = /^[A-Za-z0-9_\-]{2,20}$/;
-    function showError(msg: string) {
-      if (errEl) {
-        errEl.textContent = msg;
-        errEl.classList.add('visible');
-      }
-    }
-    function clearError() {
-      if (errEl) {
-        errEl.textContent = '';
-        errEl.classList.remove('visible');
-      }
-    }
-    clearError();
-  if (!alias) return showError(t(currentLang, 'errors.alias.required'));
-  if (!ALIAS_RE.test(alias)) return showError(t(currentLang, 'errors.alias.invalid'));
-    // case-insensitive uniqueness
-    const lower = alias.toLowerCase();
-  if (players.some(p => p.toLowerCase() === lower)) return showError(t(currentLang, 'errors.alias.duplicate'));
-    players.push(alias);
-    if (!queue.some(p => p.toLowerCase() === lower)) queue.push(alias);
-    updatePlayers();
-    updateQueue();
-    buildSchedule();
-    saveState();
-    inputEl.value = '';
-  });
-}
 
 // AI controls removed (revert)
 
-const startBtn = document.getElementById('start-tournament');
-if (startBtn) {
-  startBtn.addEventListener('click', () => {
-    // Use schedule instead of raw queue for matches
-    if (!schedule.length) buildSchedule();
-    if (!schedule.length) {
-      const next = document.getElementById('next-match');
-  if (next) next.textContent = t(currentLang, 'tour.needTwo');
-      return;
-    }
-    startNextScheduledMatch();
-    saveState();
-    updateQueue();
-  });
-}
-
-const newTourneyBtn = document.getElementById('new-tournament');
-if (newTourneyBtn) {
-  newTourneyBtn.addEventListener('click', () => {
-    players.length = 0;
-    queue.length = 0;
-    schedule = [];
-    currentMatchIndex = null;
-    resetMatch();
-    saveState();
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(QUEUE_KEY);
-    updatePlayers();
-    updateQueue();
-    renderSchedule();
-    renderBracket();
-    const next = document.getElementById('next-match');
-  if (next) next.textContent = t(currentLang, 'tour.noMatch');
-    const errEl = document.getElementById('alias-error') as HTMLElement | null;
-    if (errEl) { errEl.textContent=''; errEl.style.display='none'; }
-    navigateTo('/register');
-  });
-}
+// tournament UI and bindings moved to src/tournament/tournament.ts
 
 // Initial UI state load + route hydration
-loadState();
-// loadState is now async, but we can fire and continue; UI updates after resolution.
+// initialize and hydrate tournament UI/state
 loadState().finally(() => {
   updatePlayers();
   updateQueue();
-  buildSchedule();
+  // schedule build and UI handled by tournament module
+  initTournamentBindings();
 });
 // Hydrate initial path (supports deep-link reload); fallback handled inside showRoute
+initRouter(() => currentLang);
 navigateTo(window.location.pathname || '/', true);
+
+// create RAF loops for main and 4-player (4p handled by module)
+const loopMain = createRAFLoop(step);
+const four = createFourController(600, 600, WIN_SCORE, PADDLE_SPEED);
+document.addEventListener('keydown', (e) => { four.handleKey(e as KeyboardEvent); });
+const loop4 = createRAFLoop(() => four.step());
+// start main loop
+loopMain.start();
 
 // AI settings removed (revert)
 
