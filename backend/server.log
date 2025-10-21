@@ -1,0 +1,17 @@
+{"level":30,"time":1760885601744,"pid":13758,"hostname":"MINH","msg":"Server listening at http://0.0.0.0:8000"}
+{"level":30,"time":1760885601745,"pid":13758,"hostname":"MINH","msg":"Mock backend listening on http://0.0.0.0:8000"}
+{"level":30,"time":1760885608721,"pid":13758,"hostname":"MINH","reqId":"req-1","req":{"method":"GET","url":"/","hostname":"localhost:8000","remoteAddress":"127.0.0.1","remotePort":52508},"msg":"incoming request"}
+{"level":30,"time":1760885608724,"pid":13758,"hostname":"MINH","reqId":"req-1","msg":"Route GET:/ not found"}
+{"level":30,"time":1760885608744,"pid":13758,"hostname":"MINH","reqId":"req-1","res":{"statusCode":404},"responseTime":22.016613999847323,"msg":"request completed"}
+{"level":30,"time":1760885639763,"pid":13758,"hostname":"MINH","reqId":"req-2","req":{"method":"GET","url":"/api/health","hostname":"localhost:8000","remoteAddress":"127.0.0.1","remotePort":55406},"msg":"incoming request"}
+{"level":30,"time":1760885639765,"pid":13758,"hostname":"MINH","reqId":"req-2","res":{"statusCode":200},"responseTime":1.4571460001170635,"msg":"request completed"}
+{"level":30,"time":1760885648526,"pid":13758,"hostname":"MINH","reqId":"req-3","req":{"method":"GET","url":"/api/players","hostname":"localhost:8000","remoteAddress":"127.0.0.1","remotePort":47524},"msg":"incoming request"}
+{"level":30,"time":1760885648527,"pid":13758,"hostname":"MINH","reqId":"req-3","res":{"statusCode":200},"responseTime":1.1202130001038313,"msg":"request completed"}
+{"level":30,"time":1760885657271,"pid":13758,"hostname":"MINH","reqId":"req-4","req":{"method":"GET","url":"/api/tournament","hostname":"localhost:8000","remoteAddress":"127.0.0.1","remotePort":49942},"msg":"incoming request"}
+{"level":30,"time":1760885657273,"pid":13758,"hostname":"MINH","reqId":"req-4","res":{"statusCode":200},"responseTime":1.125097000040114,"msg":"request completed"}
+{"level":30,"time":1760885971079,"pid":13758,"hostname":"MINH","reqId":"req-5","req":{"method":"GET","url":"/","hostname":"localhost:8000","remoteAddress":"127.0.0.1","remotePort":39792},"msg":"incoming request"}
+{"level":30,"time":1760885971084,"pid":13758,"hostname":"MINH","reqId":"req-5","msg":"Route GET:/ not found"}
+{"level":30,"time":1760885971091,"pid":13758,"hostname":"MINH","reqId":"req-5","res":{"statusCode":404},"responseTime":9.033353999722749,"msg":"request completed"}
+{"level":30,"time":1760885973750,"pid":13758,"hostname":"MINH","reqId":"req-6","req":{"method":"GET","url":"/","hostname":"localhost:8000","remoteAddress":"127.0.0.1","remotePort":39792},"msg":"incoming request"}
+{"level":30,"time":1760885973773,"pid":13758,"hostname":"MINH","reqId":"req-6","msg":"Route GET:/ not found"}
+{"level":30,"time":1760885973774,"pid":13758,"hostname":"MINH","reqId":"req-6","res":{"statusCode":404},"responseTime":23.71465600002557,"msg":"request completed"}
