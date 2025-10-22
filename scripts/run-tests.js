@@ -45,3 +45,4 @@ for (const f of files) {
 
 console.log(`\nTest summary: ${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
+

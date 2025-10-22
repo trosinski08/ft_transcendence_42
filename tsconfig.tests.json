@@ -4,7 +4,8 @@
     "outDir": ".tmp-test",
     "noEmit": false,
     "declaration": false,
-    "sourceMap": false
+    "sourceMap": false,
+    "module": "CommonJS"
   },
   "include": ["src/**/*", "tests/**/*"]
 }
