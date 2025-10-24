@@ -1,4 +1,5 @@
 import { drawFour } from '../rendering/renderer';
+import { syncQueueFromBackend, getQueue } from '../state/gameState';
 
 type P4 = { x: number; y: number; w: number; h: number; dir: 'H'|'V'; color: string; score: number; alias: string };
 
@@ -54,15 +55,7 @@ export function createFourController(W_init: number, H_init: number, WIN_SCORE: 
       if (!p4Winner && p4Players[scoredIndex].score >= WIN_SCORE) {
         p4Winner = p4Players[scoredIndex].alias || `P${scoredIndex+1}`;
         p4Running = false;
-        try {
-          const wScore = p4Players[scoredIndex].score;
-          p4Players.forEach((pl, idx) => {
-            if (idx === scoredIndex) return;
-            const lScore = pl.score;
-            const w = p4Winner as string;
-            const l = pl.alias || `P${idx+1}`;
-          });
-        } catch {}
+        // Optionally: Record match result to backend here
       }
       const dirX = scoredIndex===1 ? -1 : scoredIndex===0 ? 1 : 0;
       const dirY = scoredIndex===3 ? -1 : scoredIndex===2 ? 1 : 0;
@@ -108,4 +101,22 @@ export function createFourController(W_init: number, H_init: number, WIN_SCORE: 
   }
 
   return { init, step, startIfReady, handleKey };
+}
+
+const WIN_SCORE = 5;
+const PADDLE_SPEED = 10;
+
+const four = createFourController(600, 600, WIN_SCORE, PADDLE_SPEED);
+
+// When the multiplayer page is loaded or shown:
+async function startFourPlayerFromQueue() {
+  await syncQueueFromBackend();
+  const queue = getQueue();
+  const playerNames = queue.map(entry => entry.player.alias);
+  four.startIfReady(playerNames);
+}
+
+// Automatically start multiplayer mode if on /multiplayer page
+if (window.location.pathname === '/multiplayer') {
+  startFourPlayerFromQueue();
 }
