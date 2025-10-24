@@ -1,10 +1,8 @@
-  import { t } from '../i18n/translations';
-import { players, queue, schedule, currentMatchIndex, playerStats, matchHistory, saveState, buildSchedule, recordMatch, resetTournament, startNextScheduledMatch as stateStartNext } from '../state/gameState';
+import { t } from '../i18n/translations';
+import { getPlayers, queue, schedule, currentMatchIndex, playerStats, matchHistory, saveState, buildSchedule, recordMatch, resetTournament, startNextScheduledMatch as stateStartNext, syncPlayersFromBackend, addPlayer } from '../state/gameState';
 import { validateAlias } from '../utils/validation';
 
 function sanitize(input: string): string {
-  // Basic sanitization: remove angle brackets and control chars, collapse whitespace, trim ends.
-  // Adjust as needed for your application's security requirements.
   return input.replace(/[\u0000-\u001F<>]/g, '').replace(/\s+/g, ' ').trim();
 }
 
@@ -12,9 +10,9 @@ export function updatePlayers() {
   const ul = document.getElementById('players-list');
   if (!ul) return;
   ul.innerHTML = '';
-  players.forEach((p) => {
+  getPlayers().forEach((p) => {
     const li = document.createElement('li');
-    li.textContent = p;
+    li.textContent = p.alias;
     ul.appendChild(li);
   });
 }
@@ -101,7 +99,6 @@ export function startNextScheduledMatch() {
   const p2a = document.getElementById('p2-alias');
   if (p1a) p1a.textContent = p1;
   if (p2a) p2a.textContent = p2;
-  // Reset current game state by calling window-level resetMatch if available
   try { (window as any).resetMatch && (window as any).resetMatch(); } catch {}
   renderSchedule();
   renderBracket();
@@ -112,7 +109,7 @@ export function startNextScheduledMatch() {
 export function initTournamentBindings() {
   const registerForm = document.getElementById('register-form') as HTMLFormElement | null;
   if (registerForm) {
-    registerForm.addEventListener('submit', (ev) => {
+    registerForm.addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const inputEl = document.getElementById('alias') as HTMLInputElement;
       const errEl = document.getElementById('alias-error') as HTMLElement | null;
@@ -132,9 +129,10 @@ export function initTournamentBindings() {
         return showError(t((document.documentElement.lang as any) || 'en', 'errors.alias.invalid'));
       }
       const lower = alias.toLowerCase();
-      if (players.some(p => p.toLowerCase() === lower)) return showError(t((document.documentElement.lang as any) || 'en', 'errors.alias.duplicate'));
-      players.push(alias);
-      if (!queue.some(p => p.toLowerCase() === lower)) queue.push(alias);
+      if (getPlayers().some(p => p.alias.toLowerCase() === lower)) return showError(t((document.documentElement.lang as any) || 'en', 'errors.alias.duplicate'));
+      await addPlayer(alias);
+      await syncPlayersFromBackend();
+      if (!queue.some(q => q.toLowerCase() === lower)) queue.push(alias);
       updatePlayers();
       updateQueue();
       buildSchedule();

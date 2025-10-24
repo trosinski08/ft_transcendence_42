@@ -3,6 +3,8 @@
 export interface RemotePlayer { id: string; alias: string }
 export interface RemoteTournament { players: RemotePlayer[]; schedule: any[]; currentMatchIndex: number|null }
 
+const API_URL = 'http://localhost:8000/api';
+
 async function safeGet<T>(path: string): Promise<T | null> {
   try {
     const res = await fetch(path, { headers: { 'Accept': 'application/json' } });
@@ -13,8 +15,18 @@ async function safeGet<T>(path: string): Promise<T | null> {
   }
 }
 
-export async function fetchPlayers(): Promise<RemotePlayer[] | null> {
-  return await safeGet<RemotePlayer[]>('/api/players');
+export async function fetchPlayers(): Promise<{ id: string; alias: string }[]> {
+  const res = await fetch(`${API_URL}/players`);
+  return res.json();
+}
+
+export async function addPlayer(alias: string): Promise<{ id: string; alias: string }> {
+  const res = await fetch(`${API_URL}/players`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ alias }),
+  });
+  return res.json();
 }
 
 export async function fetchTournament(): Promise<RemoteTournament | null> {

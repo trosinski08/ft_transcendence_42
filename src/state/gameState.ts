@@ -1,4 +1,4 @@
-import { fetchPlayers } from '../apiClient';
+import { fetchPlayers, addPlayer as apiAddPlayer } from '../apiClient';
 import { t } from '../i18n/translations';
 
 export type PlayerStats = { wins: number; losses: number; streak: number; rating: number };
@@ -10,34 +10,51 @@ const QUEUE_KEY = 'ft_transcendence_queue_v1';
 const STATS_PLAYERS_KEY = 'ft_stats_players_v1';
 const STATS_MATCHES_KEY = 'ft_stats_matches_v1';
 
-export const players: string[] = [];
+// --- Players ---
+let players: { id: string; alias: string }[] = [];
+export function getPlayers(): { id: string; alias: string }[] {
+  return players;
+}
+
+// --- Queue and Schedule ---
 export const queue: string[] = [];
 export const schedule: ScheduleEntry[] = [];
 export let currentMatchIndex: number | null = null;
 
+// --- Stats and Match History ---
 export const playerStats: Record<string, PlayerStats> = {};
 export const matchHistory: MatchEntry[] = [];
 
-export async function loadState(): Promise<void> {
-  let remoteUsed = false;
+// --- Backend Sync ---
+export async function syncPlayersFromBackend(): Promise<void> {
   try {
     const remote = await fetchPlayers();
-    if (remote && Array.isArray(remote) && remote.length) {
-      remote.forEach((r: any) => { if (!players.includes(r.alias)) players.push(r.alias); });
-      players.forEach(p => { if (!queue.includes(p)) queue.push(p); });
-      remoteUsed = true;
+    if (remote && Array.isArray(remote)) {
+      players = remote;
+    } else {
+      players = [];
     }
-  } catch {}
-  if (!remoteUsed) {
-    try {
-      const p = localStorage.getItem(STORAGE_KEY);
-      const q = localStorage.getItem(QUEUE_KEY);
-      if (p) JSON.parse(p).forEach((x: string) => players.push(x));
-      if (q) JSON.parse(q).forEach((x: string) => queue.push(x));
-    } catch (e) {
-      console.warn('Failed to load stored players', e);
-    }
+  } catch (e) {
+    console.warn('Failed to fetch players from backend', e);
+    players = [];
   }
+}
+
+// Add player via backend and sync
+export async function addPlayer(alias: string): Promise<void> {
+  await apiAddPlayer(alias);
+  await syncPlayersFromBackend();
+}
+
+// --- State Loading/Saving ---
+export async function loadState(): Promise<void> {
+  await syncPlayersFromBackend();
+  // Sync queue with aliases from backend players
+  queue.length = 0;
+  players.forEach(p => {
+    if (!queue.includes(p.alias)) queue.push(p.alias);
+  });
+
   // load stats
   try {
     const ps = localStorage.getItem(STATS_PLAYERS_KEY);
@@ -49,7 +66,8 @@ export async function loadState(): Promise<void> {
 
 export function saveState(): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
+    // Only save aliases for legacy support
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(players.map(p => p.alias)));
     localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
     localStorage.setItem(STATS_PLAYERS_KEY, JSON.stringify(playerStats));
     localStorage.setItem(STATS_MATCHES_KEY, JSON.stringify(matchHistory));
@@ -95,10 +113,10 @@ export function recordMatch(p1: string, p2: string, winnerName: string, s1: numb
 
 export function buildSchedule() {
   schedule.length = 0;
-  const playersCopy = [...players];
-  if (playersCopy.length < 2) return;
-  for (let i = 0; i < playersCopy.length - 1; i += 2) {
-    if (playersCopy[i + 1]) schedule.push({ p1: playersCopy[i], p2: playersCopy[i + 1], status: 'pending' });
+  const playerAliases = players.map(p => p.alias);
+  if (playerAliases.length < 2) return;
+  for (let i = 0; i < playerAliases.length - 1; i += 2) {
+    if (playerAliases[i + 1]) schedule.push({ p1: playerAliases[i], p2: playerAliases[i + 1], status: 'pending' });
   }
 }
 
@@ -113,7 +131,7 @@ export function startNextScheduledMatch(): { idx: number; p1: string; p2: string
 }
 
 export function resetTournament() {
-  players.length = 0;
+  players = [];
   queue.length = 0;
   schedule.length = 0;
   currentMatchIndex = null;
