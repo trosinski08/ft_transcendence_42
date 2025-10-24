@@ -5,30 +5,48 @@ export interface RemoteTournament { players: RemotePlayer[]; schedule: any[]; cu
 
 const API_URL = 'http://localhost:8000/api';
 
-async function safeGet<T>(path: string): Promise<T | null> {
-  try {
-    const res = await fetch(path, { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
+export async function fetchPlayers() {
+  return fetch(`${API_URL}/players`).then(res => res.json());
 }
-
-export async function fetchPlayers(): Promise<{ id: string; alias: string }[]> {
-  const res = await fetch(`${API_URL}/players`);
-  return res.json();
+export async function addPlayer(alias: string) {
+  return fetch(`${API_URL}/players`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ alias })
+  }).then(res => res.json());
 }
-
-export async function addPlayer(alias: string): Promise<{ id: string; alias: string }> {
-  const res = await fetch(`${API_URL}/players`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ alias }),
-  });
-  return res.json();
+export async function fetchQueue() {
+  return fetch(`${API_URL}/queue`).then(res => res.json());
 }
-
-export async function fetchTournament(): Promise<RemoteTournament | null> {
-  return await safeGet<RemoteTournament>('/api/tournament');
+export async function addQueueEntry(playerId: string) {
+  return fetch(`${API_URL}/queue`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerId })
+  }).then(res => res.json());
+}
+export async function removeQueueEntry(playerId: string) {
+  return fetch(`${API_URL}/queue/${playerId}`, { method: 'DELETE' }).then(res => res.json());
+}
+export async function fetchSchedule() {
+  return fetch(`${API_URL}/schedule`).then(res => res.json());
+}
+export async function addScheduleEntry(p1Id: string, p2Id: string) {
+  return fetch(`${API_URL}/schedule`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p1Id, p2Id })
+  }).then(res => res.json());
+}
+export async function updateScheduleEntry(id: string, data: any) {
+  return fetch(`${API_URL}/schedule/${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(res => res.json());
+}
+export async function fetchPlayerStats() {
+  return fetch(`${API_URL}/playerStats`).then(res => res.json());
+}
+export async function upsertPlayerStats(stats: any) {
+  return fetch(`${API_URL}/playerStats`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(stats)
+  }).then(res => res.json());
 }

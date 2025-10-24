@@ -1,5 +1,4 @@
 import { drawFour } from '../rendering/renderer';
-import { recordMatch } from '../state/gameState';
 
 type P4 = { x: number; y: number; w: number; h: number; dir: 'H'|'V'; color: string; score: number; alias: string };
 
@@ -62,7 +61,6 @@ export function createFourController(W_init: number, H_init: number, WIN_SCORE: 
             const lScore = pl.score;
             const w = p4Winner as string;
             const l = pl.alias || `P${idx+1}`;
-            recordMatch(w, l, w, wScore, lScore);
           });
         } catch {}
       }
