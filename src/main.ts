@@ -232,8 +232,13 @@ const H = canvas?.height || 420;
 
   function setRunning(val: boolean) {
     if (winner) return;
+
+    const wasRunning = running;
     running = val;
-    if (running) firstStartShown = false;
+    if (running) { 
+      firstStartShown = false;
+      if (!wasRunning) handleInput();
+    }
     updatePlayButtonUI();
   }
 
@@ -302,6 +307,9 @@ const H = canvas?.height || 420;
   initInputHandlers(() => { if (!winner) toggleRunning(); }, () => resetMatch(), () => { aiControls.setAiEnabled(!aiControls.getAiEnabled()); });
 
   function handleInput() {
+  
+  if (!running) return; 
+
   if (keys.has('KeyW')) p1Y -= PADDLE_SPEED;
   if (keys.has('KeyS')) p1Y += PADDLE_SPEED;
     if (aiControls.getAiEnabled()) {
