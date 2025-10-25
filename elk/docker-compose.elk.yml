@@ -95,7 +95,6 @@ services:
         echo "✅ Data views created successfully!"
       '
 
-
 volumes:
   elasticsearch-data:
     driver: local
