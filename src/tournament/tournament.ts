@@ -15,22 +15,28 @@ export function updatePlayers() {
   const ul = document.getElementById('players-list');
   if (!ul) return;
   ul.innerHTML = '';
-  getPlayers().forEach((p) => {
-    const li = document.createElement('li');
-    li.textContent = p.alias;
-    ul.appendChild(li);
-  });
+  const players = getPlayers();
+  if (Array.isArray(players)) {
+    players.forEach((p) => {
+      const li = document.createElement('li');
+      li.textContent = p.alias;
+      ul.appendChild(li);
+    });
+  }
 }
 export function updateQueue() {
   const ol = document.getElementById('queue-list');
   if (!ol) return;
   ol.innerHTML = '';
   // getQueue() returns array of { id, position, player, playerId }
-  getQueue().forEach((entry) => {
-    const li = document.createElement('li');
-    li.textContent = entry.player.alias;
-    ol.appendChild(li);
-  });
+  const queue = getQueue();
+  if (Array.isArray(queue)) {
+    queue.forEach((entry) => {
+      const li = document.createElement('li');
+      li.textContent = entry.player.alias;
+      ol.appendChild(li);
+    });
+  }
 }
 
 export function renderSchedule() {
@@ -75,9 +81,10 @@ export function renderStatsPage() {
     top.appendChild(p);
   } else {
     // Join with player alias for display
+    const players = getPlayers();
     const statsWithAlias = statsArr.map(s => ({
       ...s,
-      alias: (getPlayers().find(p => p.id === s.playerId) || { alias: '??' }).alias
+      alias: (Array.isArray(players) ? (players.find(p => p.id === s.playerId) || { alias: '??' }).alias : '??')
     }));
     const sorted = statsWithAlias.sort((a, b) => b.rating - a.rating).slice(0, 10);
     const maxRating = Math.max(...sorted.map(s => s.rating), 1200);
@@ -135,11 +142,15 @@ export function initTournamentBindings() {
         return showError(t((document.documentElement.lang as any) || 'en', 'errors.alias.invalid'));
       }
       const lower = alias.toLowerCase();
-      if (getPlayers().some(p => p.alias.toLowerCase() === lower)) return showError(t((document.documentElement.lang as any) || 'en', 'errors.alias.duplicate'));
+      const players = getPlayers();
+      if (Array.isArray(players) && players.some(p => p.alias.toLowerCase() === lower)) {
+        return showError(t((document.documentElement.lang as any) || 'en', 'errors.alias.duplicate'));
+      }
       await addPlayer(alias);
       await syncPlayersFromBackend();
       // Find the playerId for the new alias
-      const player = getPlayers().find(p => p.alias.toLowerCase() === lower);
+  const playersAfterSync = getPlayers();
+  const player = Array.isArray(playersAfterSync) ? playersAfterSync.find(p => p.alias.toLowerCase() === lower) : undefined;
       if (player && !getQueue().some(q => q.playerId === player.id)) {
         await addToQueue(player.id);
         await syncQueueFromBackend();
