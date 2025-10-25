@@ -21,3 +21,5 @@ nginx/ssl/server.crt
 
 
 *.local.md
+
+/src/generated/prisma
