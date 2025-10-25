@@ -17,8 +17,6 @@ install:
 	@$(NPM) install --save-dev typescript
 # ...existing rules...
 
-
-
 start:
 	@$(NPM) run start
 
