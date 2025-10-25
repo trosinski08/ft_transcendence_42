@@ -7,15 +7,16 @@ services:
     volumes:
       - db_data:/app/prisma # Wolumen do przechowywania pliku bazy danych SQLite (backend/prisma/dev.db)
     environment:
-      - DATABASE_URL=file:./prisma/dev.db
+      - DATABASE_URL=file:/app/prisma/dev.db
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/ || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/api/health || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 5
     networks:
       - appnet
     tty: true
+    command: sh -c "npx prisma migrate deploy && node src/index.js"
 
   nginx:
     build:

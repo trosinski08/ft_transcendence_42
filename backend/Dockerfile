@@ -6,8 +6,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies and tools
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/* \
+	&& npm install
 
 # Copy source code (do this after npm install so we don't overwrite node_modules)
 COPY . .

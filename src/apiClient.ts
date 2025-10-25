@@ -3,7 +3,7 @@
 export interface RemotePlayer { id: string; alias: string }
 export interface RemoteTournament { players: RemotePlayer[]; schedule: any[]; currentMatchIndex: number|null }
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = '/api';
 
 export async function fetchPlayers() {
   return fetch(`${API_URL}/players`).then(res => res.json());

@@ -88,7 +88,7 @@ async function sendLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, metada
       return id;
     })();
 
-    await fetch('http://localhost:8080', {
+    await fetch('/api/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
