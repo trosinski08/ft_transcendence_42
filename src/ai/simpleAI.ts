@@ -15,7 +15,7 @@ export function nextAIPaddleY(ball: BallState, ai: PaddleState, field: { width: 
   targetY = Math.max(ARENA.PADDING_TOP, Math.min(field.height - ARENA.PADDING_BOTTOM - ai.height, targetY));
   // Add jitter for non-perfect play
   if (cfg.errorJitter > 0) {
-    targetY += (Math.random() * 2 - 1) * cfg.errorJitter;
+    targetY += (Math.random() * 5 - 1) * cfg.errorJitter;
   }
   // Smooth movement towards target
   const dy = targetY - ai.y;

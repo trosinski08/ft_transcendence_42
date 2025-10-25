@@ -5,10 +5,11 @@ import { DIFFICULTY_PRESETS } from './ai/difficultyPresets';
 import type { AIDifficulty } from './ai/aiTypes';
 import { nextAIPaddleY } from './ai/simpleAI';
 import {
-  schedule,
-  currentMatchIndex,
-  loadState,
-  recordMatch} from './state/gameState';
+  getPlayers, getQueue, getSchedule, getPlayerStats, getMatchHistory,
+  addPlayer, addToQueue, removeFromQueue, addSchedule, updateSchedule, upsertStats,
+  syncPlayersFromBackend, syncQueueFromBackend, syncScheduleFromBackend, syncPlayerStatsFromBackend,
+  loadState, resetTournament, currentMatchIndex
+} from './state/gameState';
 import { initRouter, navigateTo } from './routing/router';
 import { keys, initInputHandlers } from './game/input';
 /* Minimal in-file physics shim to satisfy usages in main.ts:
@@ -87,7 +88,7 @@ async function sendLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, metada
       return id;
     })();
 
-    await fetch('http://localhost:8080', {
+    await fetch('/api/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -196,7 +197,8 @@ const H = canvas?.height || 420;
     const p2a = document.getElementById('p2-alias');
     if (!p2a) return;
     if (enabled) p2a.textContent = t(currentLang, 'game.ai');
-    else if (currentMatchIndex != null && schedule[currentMatchIndex]) p2a.textContent = schedule[currentMatchIndex].p2;
+    else if (currentMatchIndex != null && getSchedule()[currentMatchIndex])
+      p2a.textContent = getSchedule()[currentMatchIndex].p2.alias;
     else p2a.textContent = t(currentLang, 'game.player2');
   }, (d) => { /* difficulty changed, no-op */ });
 
@@ -232,8 +234,13 @@ const H = canvas?.height || 420;
 
   function setRunning(val: boolean) {
     if (winner) return;
+
+    const wasRunning = running;
     running = val;
-    if (running) firstStartShown = false;
+    if (running) { 
+      firstStartShown = false;
+      if (!wasRunning) handleInput();
+    }
     updatePlayButtonUI();
   }
 
@@ -302,6 +309,9 @@ const H = canvas?.height || 420;
   initInputHandlers(() => { if (!winner) toggleRunning(); }, () => resetMatch(), () => { aiControls.setAiEnabled(!aiControls.getAiEnabled()); });
 
   function handleInput() {
+  
+  if (!running) return; 
+
   if (keys.has('KeyW')) p1Y -= PADDLE_SPEED;
   if (keys.has('KeyS')) p1Y += PADDLE_SPEED;
     if (aiControls.getAiEnabled()) {
@@ -652,14 +662,18 @@ function handlePowerUps() {
 
 
 // Hook into winner assignment (poll each frame)
-function afterScoreUpdateObserver() {
-  if (winner && currentMatchIndex != null && schedule[currentMatchIndex]) {
-    if (schedule[currentMatchIndex].status !== 'done') {
-      schedule[currentMatchIndex].status = 'done';
-      schedule[currentMatchIndex].winner = winner;
-      const p1 = (document.getElementById('p1-alias')?.textContent || t(currentLang, 'game.player1'));
-      const p2 = (document.getElementById('p2-alias')?.textContent || t(currentLang, 'game.player2'));
-      recordMatch(p1, p2, winner, score1, score2);
+async function afterScoreUpdateObserver() {
+  if (winner && currentMatchIndex != null && getSchedule()[currentMatchIndex]) {
+    const match = getSchedule()[currentMatchIndex];
+    if (match.status !== 'done') {
+      // Update the match in the backend
+      await updateSchedule(match.id, {
+        status: 'done',
+        winnerId: winner,
+        score1,
+        score2
+      });
+      await syncScheduleFromBackend();
       renderSchedule();
       renderBracket();
     }
