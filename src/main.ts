@@ -88,7 +88,7 @@ async function sendLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, metada
       return id;
     })();
 
-    await fetch('/api/', {
+    await fetch('/log-frontend', { // <--- ZMIENIONO Z '/api/' NA '/log-frontend'
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

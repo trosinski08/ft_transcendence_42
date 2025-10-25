@@ -24,12 +24,12 @@ services:
     image: docker.elastic.co/logstash/logstash:8.13.0
     container_name: pong-logstash
     volumes:
-      - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
-      - ./logstash/patterns:/usr/share/logstash/patterns:ro
+      - ./elk/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - ./elk/logstash/patterns:/usr/share/logstash/patterns:ro
     ports:
       - "5000:5000/tcp"
       - "5000:5000/udp"
-      - "8080:8080"  # Frontend logs HTTP input
+      - "8085:8080" # Frontend logs HTTP input
       - "8081:8081"  # Backend logs HTTP input
       - "8082:8082"  # Nginx logs HTTP input
       - "8083:8083"  # Database logs HTTP input
