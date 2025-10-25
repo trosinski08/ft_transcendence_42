@@ -5,6 +5,8 @@ import { ARENA, PADDLE as PDL, BALL as BL, RULES } from './game/constants';
 import { DIFFICULTY_PRESETS } from './ai/difficultyPresets';
 import type { AIDifficulty } from './ai/aiTypes';
 import { nextAIPaddleY } from './ai/simpleAI';
+import { sendLog_frontend } from './elk_logs';
+
 
 // Utility functions
 function sanitize(str: string): string {
@@ -30,8 +32,18 @@ function detectInitialLang(): Lang {
 let currentLang: Lang = detectInitialLang() || DEFAULT_LANG;
 function setLanguage(lang: Lang) {
   currentLang = lang;
-  try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch {}
-  try { document.documentElement.lang = lang; } catch {}
+  try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch (err) {
+    sendLog_frontend('error', 'Failed to save language setting', {
+      error: err,
+      lang
+    });
+  }
+  try { document.documentElement.lang = lang; } catch (err) {
+    sendLog_frontend('error', 'Failed to set document language', {
+      error: err,
+      lang
+    });
+  }
   applyTranslations(document, lang);
   const sel = document.getElementById('lang-select') as HTMLSelectElement | null;
   if (sel && sel.value !== lang) sel.value = lang;
@@ -106,13 +118,21 @@ const H = canvas?.height || 420;
       const mh = localStorage.getItem(STATS_MATCHES_KEY);
       if (ps) Object.assign(playerStats, JSON.parse(ps));
       if (mh) matchHistory.push(...JSON.parse(mh));
-    } catch {}
+    } catch (err) {
+      sendLog_frontend('error', 'Failed to load stats', {
+        error: err
+      });
+    }
   }
   function saveStats() {
     try {
       localStorage.setItem(STATS_PLAYERS_KEY, JSON.stringify(playerStats));
       localStorage.setItem(STATS_MATCHES_KEY, JSON.stringify(matchHistory));
-    } catch {}
+    } catch (err) {
+      sendLog_frontend('error', 'Failed to save stats', {
+        error: err
+      });
+    }
   }
   function resetStats() {
     for (const k of Object.keys(playerStats)) delete playerStats[k];
@@ -120,7 +140,11 @@ const H = canvas?.height || 420;
     try {
       localStorage.removeItem(STATS_PLAYERS_KEY);
       localStorage.removeItem(STATS_MATCHES_KEY);
-    } catch {}
+    } catch (err) {
+      sendLog_frontend('error', 'Failed to reset stats', {
+        error: err
+      });
+      }
   }
   function ensurePlayer(name: string) {
     if (!playerStats[name]) playerStats[name] = { wins: 0, losses: 0, streak: 0, rating: 1000 };
@@ -154,7 +178,11 @@ const H = canvas?.height || 420;
     if (diff && (diff.toUpperCase() in DIFFICULTY_PRESETS)) {
       aiDifficulty = diff.toUpperCase() as AIDifficulty;
     }
-  } catch {}
+  } catch (err) {
+    sendLog_frontend('error', 'Failed to parse AI settings from URL', {
+      error: err
+    });
+  }
 
   // Hydrate persisted AI settings (UI will sync below)
   const AI_STORAGE_KEY = 'ft_transcendence_ai_settings_v1';
@@ -167,7 +195,11 @@ const H = canvas?.height || 420;
         aiDifficulty = parsed.difficulty.toUpperCase() as AIDifficulty;
       }
     }
-  } catch {}
+  } catch (err) {
+    sendLog_frontend('error', 'Failed to load AI settings', {
+      error: err
+    });
+  }
 
   function resetBall(direction: number = (Math.random() > 0.5 ? 1 : -1)) {
     const vy = (Math.random() - 0.5) * BALL_INIT_SPEED_Y_RANGE;
@@ -295,6 +327,25 @@ const H = canvas?.height || 420;
     requestAnimationFrame(step);
   }
 
+
+window.addEventListener('error', (event) => {
+  sendLog_frontend('error', event.message || 'Uncaught error', {
+    stack: event.error?.stack,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+    error: event.error ? JSON.stringify(event.error) : undefined,
+    eventType: 'window.error'
+  });
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  sendLog_frontend('error', 'Unhandled promise rejection', {
+    reason: event.reason ? (typeof event.reason === 'string' ? event.reason : JSON.stringify(event.reason)) : undefined,
+    eventType: 'window.unhandledrejection'
+  });
+});
+
   const keys = new Set<string>();
   window.addEventListener('keydown', (e) => {
     keys.add(e.code);
@@ -315,6 +366,8 @@ const H = canvas?.height || 420;
   window.addEventListener('keyup', (e) => keys.delete(e.code));
 
   function handleInput() {
+
+
   if (keys.has('KeyW')) p1Y -= PADDLE_SPEED;
   if (keys.has('KeyS')) p1Y += PADDLE_SPEED;
     if (aiEnabled) {
@@ -351,7 +404,11 @@ const H = canvas?.height || 420;
   function persistAI() {
     try {
       localStorage.setItem(AI_STORAGE_KEY, JSON.stringify({ enabled: aiEnabled, difficulty: aiDifficulty }));
-    } catch {}
+    } catch (err) {
+      sendLog_frontend('error', 'Failed to persist AI settings', {
+        error: err
+      });
+    }
   }
 
   function syncAIControls() {
@@ -421,12 +478,20 @@ function loadSettings(): Settings {
     if (!raw) return defaultSettings();
     const parsed = JSON.parse(raw);
     return { ...defaultSettings(), ...parsed } as Settings;
-  } catch {
+  } catch (err) {
+    sendLog_frontend('error', 'Failed to load settings', {
+      error: err
+    });
     return defaultSettings();
   }
 }
 function saveSettings(s: Settings) {
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {}
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (err) {
+    sendLog_frontend('error', 'Failed to save settings', {
+      error: err,
+      settings: s
+    });
+  }
 }
 let settings = loadSettings();
 
@@ -528,30 +593,49 @@ const pages = {
   multi: document.getElementById('multi-page') as HTMLElement | null,
 };
 
+
 const STORAGE_KEY = 'ft_transcendence_players_v1';
 const QUEUE_KEY = 'ft_transcendence_queue_v1';
 const players: string[] = [];
 const queue: string[] = [];
 
 function showRoute(path: string) {
-  try { console.log('[nav] showRoute ->', path); } catch {}
+  try { console.log('[nav] showRoute ->', path); } catch (err) {
+    sendLog_frontend('error', 'Failed to log navigation', {
+      error: err,
+      path
+    });
+  }
+  sendLog_frontend('error', 'Failed to log navigation', {
+  error: "test",
+  path
+  });
   [pages.home, pages.register, pages.tournament, pages.game, pages.settings, pages.stats, pages.multi].forEach((p) => {
     if (p) { p.classList.remove('visible'); }
   });
   switch (path) {
     case '/':
+      console.log('Navigating to home page');
+      sendLog_frontend('error', 'Home page viewed', { test: true });
+
       if (pages.home) pages.home.classList.add('visible');
       break;
     case '/settings':
       if (pages.settings) pages.settings.classList.add('visible');
       break;
     case '/stats':
-      if (pages.stats) { pages.stats.classList.add('visible'); try { (renderStatsPage as any) && renderStatsPage(); } catch {} }
+      if (pages.stats) { pages.stats.classList.add('visible'); try { (renderStatsPage as any) && renderStatsPage(); } catch (err) {
+        sendLog_frontend('error', 'Failed to render stats page', {
+          error: err
+        });
+      } }
       break;
     case '/register':
       if (pages.register) pages.register.classList.add('visible');
   break;
     case '/tournament':
+      console.log('Logging tournament page view');
+      sendLog_frontend('info', 'Tournament page viewed', { test: true });
       if (pages.tournament) pages.tournament.classList.add('visible');
       break;
     case '/game':
@@ -566,7 +650,12 @@ function showRoute(path: string) {
       path = '/';
   }
   try { document.body && document.body.setAttribute('data-route', path); } catch {}
-  try { applyTranslations(document, currentLang); } catch {}
+  try { applyTranslations(document, currentLang); } catch (err) {
+    sendLog_frontend('error', 'Failed to apply translations', {
+      error: err,
+      lang: currentLang
+    });
+  }
   return path; // return possibly normalized path
 }
 
@@ -765,7 +854,13 @@ function stepFour() {
           const l = pl.alias || `P${idx+1}`;
           recordMatch(w, l, w, wScore, lScore);
         });
-      } catch {}
+      } catch (err) {
+        sendLog_frontend('error', 'Failed to record match stats', {
+          error: err,
+          winner: p4Winner,
+          loser: p4Players[scoredIndex].alias || `P${scoredIndex+1}`,
+        });
+      }
     }
     // reset ball towards the scorer
     const dirX = scoredIndex===1 ? -1 : scoredIndex===0 ? 1 : 0;
@@ -824,7 +919,13 @@ function navigateTo(path: string, replace = false) {
     return;
   }
   if (replace) history.replaceState({}, '', normalized); else history.pushState({}, '', normalized);
-  try { console.log('[nav] navigateTo ->', normalized); } catch {}
+  try { console.log('[nav] navigateTo ->', normalized); } catch (err) 
+  {
+    sendLog_frontend('error', 'Failed to log navigation', {
+      error: err,
+      normalized
+    });
+  }
 }
 
 // Handle browser back/forward
@@ -837,7 +938,12 @@ document.addEventListener('click', (e) => {
   const a = (target.closest && target.closest('[data-link]')) as HTMLAnchorElement | null;
   if (a) {
     e.preventDefault();
-    try { console.log('[nav] anchor click', a.getAttribute('href')); } catch {}
+    try { console.log('[nav] anchor click', a.getAttribute('href')); } catch (err) {
+      sendLog_frontend('error', 'Failed to log anchor click', {
+        error: err,
+        href: a.getAttribute('href')
+      });
+    }
     navigateTo(a.getAttribute('href') || '/');
     return;
   }
@@ -852,7 +958,11 @@ document.addEventListener('click', (e) => {
   if (reset) {
     e.preventDefault();
     resetStats();
-    try { renderStatsPage(); } catch {}
+    try { renderStatsPage(); } catch (err) {
+      sendLog_frontend('error', 'Failed to render stats page', {
+        error: err
+      });
+    }
   }
 });
 
@@ -866,9 +976,17 @@ async function loadState() {
       // Build a naive queue from remote player order
       players.forEach(p => { if (!queue.includes(p)) queue.push(p); });
       remoteUsed = true;
-      try { console.info('[api] loaded players from /api/players'); } catch {}
+      try { console.info('[api] loaded players from /api/players'); } catch (err) {
+        sendLog_frontend('error', 'Failed to log player load', {
+          error: err
+        });
+      }
     }
-  } catch {}
+  } catch (err) {
+    sendLog_frontend('error', 'Failed to fetch remote players', {
+      error: err
+    });
+  }
   if (!remoteUsed) {
     try {
       const p = localStorage.getItem(STORAGE_KEY);
@@ -876,6 +994,9 @@ async function loadState() {
       if (p) JSON.parse(p).forEach((x: string) => players.push(x));
       if (q) JSON.parse(q).forEach((x: string) => queue.push(x));
     } catch (e) {
+      sendLog_frontend('error', 'Failed to load stored players', {
+        error: e
+      });
       console.warn('Failed to load stored players', e);
     }
   }
@@ -885,6 +1006,9 @@ function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
     localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
   } catch (e) {
+    sendLog_frontend('error', 'Failed to save players', {
+      error: e
+    });
     console.warn('Failed to save players', e);
   }
 }
@@ -1005,7 +1129,11 @@ function startNextScheduledMatch() {
   renderBracket();
   navigateTo('/game');
   // Reflect AI alias if enabled
-  try { (updateP2Alias as any) && updateP2Alias(); } catch {}
+  try { (updateP2Alias as any) && updateP2Alias(); } catch (err) {
+    sendLog_frontend('error', 'Failed to update P2 alias', {
+      error: err
+    });
+  }
 }
 
 // Hook into winner assignment (poll each frame)
