@@ -615,9 +615,6 @@ function showRoute(path: string) {
   });
   switch (path) {
     case '/':
-      console.log('Navigating to home page');
-      sendLog_frontend('error', 'Home page viewed', { test: true });
-
       if (pages.home) pages.home.classList.add('visible');
       break;
     case '/settings':
@@ -634,8 +631,6 @@ function showRoute(path: string) {
       if (pages.register) pages.register.classList.add('visible');
   break;
     case '/tournament':
-      console.log('Logging tournament page view');
-      sendLog_frontend('info', 'Tournament page viewed', { test: true });
       if (pages.tournament) pages.tournament.classList.add('visible');
       break;
     case '/game':
