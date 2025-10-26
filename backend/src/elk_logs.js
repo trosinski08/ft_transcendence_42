@@ -1,7 +1,7 @@
 
 async function sendLogToLogstash(level, message, metadata = {}) {
   try {
-    const res = await fetch('http://localhost:8080', {
+    const res = await fetch('http://pong-logstash:8081', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -18,5 +18,6 @@ async function sendLogToLogstash(level, message, metadata = {}) {
     console.error('Failed to send log to Logstash:', err, { level, message, metadata });
   }
 }
+
 
 module.exports = { sendLogToLogstash };

@@ -3,6 +3,7 @@ const fastify = require('fastify')({ logger: true });
 const cors = require('@fastify/cors');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { sendLogToLogstash } = require('./elk_logs');
 
 const PORT = Number(process.env.PORT || 8000);
 
@@ -69,6 +70,7 @@ async function buildServer() {
 
   // Log endpoint
   fastify.post('/api/log', async (req, reply) => {
+    sendLogToLogstash("log", "client-log", { body: req.body });
     fastify.log.info({ body: req.body }, 'client-log');
     return { ok: true };
   });
