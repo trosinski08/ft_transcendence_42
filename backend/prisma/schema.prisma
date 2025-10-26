@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id    String @id @default(uuid())
+  alias String @unique
+  stats PlayerStats?
+  queue QueueEntry?
+  matches1 Match[] @relation("Player1Matches")
+  matches2 Match[] @relation("Player2Matches")
+}
+
+model QueueEntry {
+  id        String  @id @default(uuid())
+  position  Int
+  player    Player  @relation(fields: [playerId], references: [id])
+  playerId  String  @unique
+}
+
+model Match {
+  id        String   @id @default(uuid())
+  p1Id      String
+  p2Id      String
+  winnerId  String?
+  ts        DateTime @default(now())
+  score1    Int
+  score2    Int
+  status    String
+  p1        Player   @relation("Player1Matches", fields: [p1Id], references: [id])
+  p2        Player   @relation("Player2Matches", fields: [p2Id], references: [id])
+}
+
+model PlayerStats {
+  id      String   @id @default(uuid())
+  player  Player   @relation(fields: [playerId], references: [id])
+  playerId String  @unique
+  wins    Int
+  losses  Int
+  streak  Int
+  rating  Int
+}

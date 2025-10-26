@@ -1,18 +1,46 @@
 services:
-  frontend:
+  backend:
     build:
-      context: .
-      dockerfile: Dockerfile.prod
-    ports:
-      - "9443:443" # HTTPS
-    restart: unless-stopped
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    volumes:
+      - db_data:/app/prisma # Wolumen do przechowywania pliku bazy danych SQLite (backend/prisma/dev.db)
+    environment:
+      - DATABASE_URL=file:/app/prisma/dev.db
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/api/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     networks:
       - appnet
+      - elk-network
+    tty: true
+    command: sh -c "npx prisma migrate deploy && node src/index.js"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: ./nginx/Dockerfile
+    container_name: nginx
+    ports:
+      - "8080:80"
+      - "9443:443"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - appnet
+      - elk-network
 
 networks:
   appnet:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.30.0.0/16
+    # ipam:
+    #   driver: default
+    #   config:
+    #     - subnet: 172.30.0.0/16
+
+volumes:
+  db_data:
