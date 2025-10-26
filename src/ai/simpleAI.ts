@@ -13,9 +13,15 @@ export function nextAIPaddleY(ball: BallState, ai: PaddleState, field: { width: 
   }
   // Clamp within arena bounds
   targetY = Math.max(ARENA.PADDING_TOP, Math.min(field.height - ARENA.PADDING_BOTTOM - ai.height, targetY));
+  // Random AI mistake: chance to miss by a larger amount
+  if (cfg.mistakeChance && Math.random() < cfg.mistakeChance) {
+    const missDirection = Math.random() > 0.5 ? 1 : -1;
+    const missAmount = (field.height / 3) * Math.random();
+    targetY += missDirection * missAmount;
+  }
   // Add jitter for non-perfect play
   if (cfg.errorJitter > 0) {
-    targetY += (Math.random() * 5 - 1) * cfg.errorJitter;
+    targetY += (Math.random() - 0.5) * 2 * cfg.errorJitter;
   }
   // Smooth movement towards target
   const dy = targetY - ai.y;

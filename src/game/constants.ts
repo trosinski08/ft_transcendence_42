@@ -13,10 +13,10 @@ export const PADDLE = {
 
 export const BALL = {
   RADIUS: 6,
-  INIT_SPEED_X: 3,
+  INIT_SPEED_X: 4,
   INIT_SPEED_Y_RANGE: 4,
-  SPEED_INC_FACTOR: 1.03,
-  MAX_SPEED: 11,
+  SPEED_INC_FACTOR: 1.08,
+  MAX_SPEED: 12,
 };
 
 export const RULES = {
