@@ -27,8 +27,6 @@ export function drawMain(ctx: CanvasRenderingContext2D | null, state: any) {
   // a ball slightly outside due to numeric/device-pixel differences remains visible
   const finiteX = Number.isFinite(bx);
   const finiteY = Number.isFinite(by);
-  // ...existing code...
-  // Clamp into visible area (allow small overflow of radius)
   const drawX = finiteX ? Math.max(br, Math.min(W - br, bx)) : W / 2;
   const drawY = finiteY ? Math.max(br, Math.min(H - br, by)) : H / 2;
   ctx.beginPath();
