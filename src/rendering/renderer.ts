@@ -2,6 +2,7 @@ import { t } from '../i18n/translations';
 import { ARENA } from '../game/constants';
 
 export function drawMain(ctx: CanvasRenderingContext2D | null, state: any) {
+  // ...existing code...
   if (!ctx) return;
   const {
     W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg,
@@ -17,10 +18,22 @@ export function drawMain(ctx: CanvasRenderingContext2D | null, state: any) {
   ctx.fillRect(ARENA.LEFT_X, p1Y, paddleW, p1H);
   ctx.fillRect(W - ARENA.RIGHT_X_OFFSET - paddleW, p2Y, paddleW, p2H);
 
-  // ball
+  // ball (guard against invalid/offscreen coordinates)
+  const safeNum = (v: any, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+  const bx = safeNum(ball?.x, W / 2);
+  const by = safeNum(ball?.y, H / 2);
+  const br = Math.max(1, safeNum(ball?.r, 4));
+  // If ball coords are invalid, use center. Otherwise clamp to canvas so
+  // a ball slightly outside due to numeric/device-pixel differences remains visible
+  const finiteX = Number.isFinite(bx);
+  const finiteY = Number.isFinite(by);
+  // ...existing code...
+  // Clamp into visible area (allow small overflow of radius)
+  const drawX = finiteX ? Math.max(br, Math.min(W - br, bx)) : W / 2;
+  const drawY = finiteY ? Math.max(br, Math.min(H - br, by)) : H / 2;
   ctx.beginPath();
   ctx.fillStyle = '#fff';
-  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.arc(drawX, drawY, br, 0, Math.PI * 2);
   ctx.fill();
 
   // pickup

@@ -13,60 +13,7 @@ import {
 } from './state/gameState';
 import { initRouter, navigateTo } from './routing/router';
 import { keys, initInputHandlers } from './game/input';
-import { TournamentSchedule, Match, MatchUpdatePayload } from './tournament/tournamentTypes'; // Dodaj ten import
-
-/* Minimal in-file physics shim to satisfy usages in main.ts:
-   Provides updateBall(...) returning { ball, lastHit?, scored? }
-   and resetBall(...) returning a new ball object. This avoids a
-   missing-module build error; replace with the real physics module
-   when available. */
-const physics: any = {
-  updateBall(ball: any, p1Y: number, p1H: number, p2Y: number, p2H: number, params: any) {
-    const res: any = { ball: { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, r: ball.r }, lastHit: null, scored: null };
-    // advance
-    res.ball.x += res.ball.vx;
-    res.ball.y += res.ball.vy;
-    // top/bottom bounce
-    if (res.ball.y - res.ball.r <= 0) { res.ball.y = res.ball.r; res.ball.vy = -res.ball.vy; }
-    if (res.ball.y + res.ball.r >= params.H) { res.ball.y = params.H - res.ball.r; res.ball.vy = -res.ball.vy; }
-    // paddle geometry
-    const leftPaddleX = params.ARENA_LEFT_X + params.paddleW;
-    const rightPaddleX = params.W - params.ARENA_RIGHT_X_OFFSET - params.paddleW;
-    // left paddle collision or left score
-    if (res.ball.x - res.ball.r <= leftPaddleX) {
-      if (res.ball.y >= p1Y && res.ball.y <= p1Y + p1H) {
-        res.ball.x = leftPaddleX + res.ball.r;
-        res.ball.vx = -res.ball.vx * params.BALL_SPEED_INC_FACTOR;
-        const speed = Math.min(Math.hypot(res.ball.vx, res.ball.vy), params.BALL_MAX_SPEED);
-        const ang = Math.atan2(res.ball.vy, res.ball.vx);
-        res.ball.vx = Math.cos(ang) * speed;
-        res.ball.vy = Math.sin(ang) * speed;
-        res.lastHit = 1;
-      } else {
-        res.scored = 'left';
-      }
-    }
-    // right paddle collision or right score
-    if (res.ball.x + res.ball.r >= rightPaddleX) {
-      if (res.ball.y >= p2Y && res.ball.y <= p2Y + p2H) {
-        res.ball.x = rightPaddleX - res.ball.r;
-        res.ball.vx = -res.ball.vx * params.BALL_SPEED_INC_FACTOR;
-        const speed = Math.min(Math.hypot(res.ball.vx, res.ball.vy), params.BALL_MAX_SPEED);
-        const ang = Math.atan2(res.ball.vy, res.ball.vx);
-        res.ball.vx = Math.cos(ang) * speed;
-        res.ball.vy = Math.sin(ang) * speed;
-        res.lastHit = 2;
-      } else {
-        res.scored = 'right';
-      }
-    }
-    return res;
-  },
-  resetBall(W: number, H: number, initX: number, initYRange: number, radius: number, direction: number) {
-    const vy = (Math.random() - 0.5) * initYRange;
-    return { x: W / 2, y: H / 2, vx: direction * initX, vy, r: radius };
-  }
-};
+import * as physics from './game/physics/physics';
 import { drawMain } from './rendering/renderer';
 import { createRAFLoop } from './game/engine/gameLoop';
 import { initTournamentBindings, updatePlayers, updateQueue, renderSchedule, renderBracket } from './tournament/tournament';
@@ -91,7 +38,7 @@ async function sendLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, metada
       return id;
     })();
 
-    await fetch('/log-frontend', { // <--- ZMIENIONO Z '/api/' NA '/log-frontend'
+    await fetch('http://localhost:8080', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -106,14 +53,13 @@ async function sendLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, metada
       })
     });
   } catch (error) {
-    // Silently fail - logging should never break the app
-    console.debug('ELK log send failed:', error);
+  // Silently fail - logging should never break the app
   }
 }
 // Utility functions moved to `src/utils`
 
 // Debug marker to confirm JS is executing in production
-try { console.log('[pong] script loaded'); document.body && document.body.setAttribute('data-js', 'ready'); } catch {}
+try { document.body && document.body.setAttribute('data-js', 'ready'); } catch {}
 
 // --- i18n setup ---
 const LANG_STORAGE_KEY = 'ft_lang_v1';
@@ -122,7 +68,7 @@ function detectInitialLang(): Lang {
     const saved = (localStorage.getItem(LANG_STORAGE_KEY) || '').toLowerCase();
     if (isLang(saved)) return saved as Lang;
     const nav = (navigator.language || (navigator as any).userLanguage || 'en').toLowerCase();
-    if (nav.startsWith('pl')) return 'pl';
+    if (nav.startsWith('en')) return 'en';
     if (nav.startsWith('de')) return 'de';
   } catch {}
   return 'en';
@@ -151,8 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
 const canvas = document.getElementById('game') as HTMLCanvasElement | null;
 const ctx = canvas?.getContext('2d') || null;
 
-const W = canvas?.width || 860;
-const H = canvas?.height || 420;
+let W = canvas?.width || 860;
+let H = canvas?.height || 420;
 
   // Gameplay constants (uniform rules)
   let PADDLE_SPEED = PDL.SPEED;
@@ -186,7 +132,7 @@ const H = canvas?.height || 420;
     p1Y = Math.max(ARENA.PADDING_TOP, Math.min(H - p1H - ARENA.PADDING_BOTTOM, p1Y));
     p2Y = Math.max(ARENA.PADDING_TOP, Math.min(H - p2H - ARENA.PADDING_BOTTOM, p2Y));
   }
-  let ball = { x: W / 2, y: H / 2, vx: BALL_INIT_SPEED_X, vy: 2, r: BALL_RADIUS };
+  let ball = { x: W / 2, y: H / 2, vx: 0, vy: 0, r: BALL_RADIUS };
 
   // Schedule state moved to `src/state/gameState`
 
@@ -200,20 +146,14 @@ const H = canvas?.height || 420;
     const p2a = document.getElementById('p2-alias');
     if (!p2a) return;
     if (enabled) p2a.textContent = t(currentLang, 'game.ai');
-    else if (currentMatchIndex != null && getSchedule()[currentMatchIndex])
-      p2a.textContent = getSchedule()[currentMatchIndex].p2.alias;
+  else if (currentMatchIndex != null && getSchedule()[currentMatchIndex]) p2a.textContent = getSchedule()[currentMatchIndex].p2.alias;
     else p2a.textContent = t(currentLang, 'game.player2');
   }, (d) => { /* difficulty changed, no-op */ });
 
-  function resetBall(direction: number = (Math.random() > 0.5 ? 1 : -1)) {
-    const vy = (Math.random() - 0.5) * BALL_INIT_SPEED_Y_RANGE;
-    ball = { x: W / 2, y: H / 2, vx: direction * BALL_INIT_SPEED_X, vy, r: BALL_RADIUS };
-    running = false;
-  }
 
   function resetMatch() {
     score1 = 0; score2 = 0; winner = null; updateScoreUI();
-    resetBall();
+    ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS);
     firstStartShown = true;
   }
 
@@ -236,15 +176,30 @@ const H = canvas?.height || 420;
   }
 
   function setRunning(val: boolean) {
-    if (winner) return;
-
-    const wasRunning = running;
+  // ...existing code...
+    if (winner) {
+  // ...existing code...
+      return;
+    }
     running = val;
-    if (running) { 
+    if (running) {
+      // Jeśli piłka stoi, nadaj jej prędkość startową
+      if (ball.vx === 0 && ball.vy === 0) {
+        const direction = Math.random() < 0.5 ? 1 : -1;
+        const vy = (Math.random() - 0.5) * BALL_INIT_SPEED_Y_RANGE;
+        ball.vx = direction * BALL_INIT_SPEED_X;
+        ball.vy = vy;
+      }
       firstStartShown = false;
-      if (!wasRunning) handleInput();
+  // ...existing code...
     }
     updatePlayButtonUI();
+    try {
+      drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
+    } catch (e) {
+  // ...existing code...
+    }
+  // ...existing code...
   }
 
   function toggleRunning() { setRunning(!running); }
@@ -280,41 +235,59 @@ const H = canvas?.height || 420;
     if (running && !winner) {
       // delegate movement/collision to physics
       const physicsParams = {
-        W, H,
+         W, H,
         ARENA_LEFT_X: ARENA.LEFT_X,
         ARENA_RIGHT_X_OFFSET: ARENA.RIGHT_X_OFFSET,
+        ARENA_PADDING_TOP: ARENA.PADDING_TOP,
+        ARENA_PADDING_BOTTOM: ARENA.PADDING_BOTTOM,
         paddleW,
         BALL_SPEED_INC_FACTOR,
         BALL_MAX_SPEED
       };
-  const result = physics.updateBall(ball, p1Y, p1H, p2Y, p2H, physicsParams);
-  ball = result.ball;
-  if (result.lastHit) lastHit = result.lastHit;
-      // Power-up spawn and pickup
+      const result = physics.updateBall(ball, p1Y, p1H, p2Y, p2H, physicsParams);
+      ball = result.ball;
+      if (result.lastHit) lastHit = result.lastHit;
       handlePowerUps();
-      // Scoring: update scores if physics reported scoring
-      if (result.scored === 'left') {
-        score2 += 1; updateScoreUI();
-        afterScoreUpdateObserver();
-        if (score2 >= WIN_SCORE) { winner = (document.getElementById('p2-alias')?.textContent || t(currentLang, 'game.player2')); }
-  ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS, 1);
-      } else if (result.scored === 'right') {
-        score1 += 1; updateScoreUI();
-        afterScoreUpdateObserver();
-        if (score1 >= WIN_SCORE) { winner = (document.getElementById('p1-alias')?.textContent || t(currentLang, 'game.player1')); }
-  ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS, -1);
+      if (result.scored) {
+        // Ball reset: center, zero velocity, direction for next launch
+        ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS, (result.scored === 'left' ? 1 : -1));
+        ball.vx = 0;
+        ball.vy = 0;
+  // ...existing code...
+        running = false;
+        firstStartShown = true;
+        if (result.scored === 'left') {
+          score2 += 1; updateScoreUI();
+          afterScoreUpdateObserver();
+          if (score2 >= WIN_SCORE) { winner = (document.getElementById('p2-alias')?.textContent || t(currentLang, 'game.player2')); }
+        } else if (result.scored === 'right') {
+          score1 += 1; updateScoreUI();
+          afterScoreUpdateObserver();
+          if (score1 >= WIN_SCORE) { winner = (document.getElementById('p1-alias')?.textContent || t(currentLang, 'game.player1')); }
+        }
       }
     }
-    drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
+  drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
   }
 
   // Initialize global input handlers
-  initInputHandlers(() => { if (!winner) toggleRunning(); }, () => resetMatch(), () => { aiControls.setAiEnabled(!aiControls.getAiEnabled()); });
+  // Space toggles pause/play, R resets match
+  initInputHandlers(
+    () => { if (!winner) toggleRunning(); },
+    () => {
+      // Reset: ball to center, zero velocity, scores zero
+      score1 = 0; score2 = 0; winner = null; updateScoreUI();
+      ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS);
+      ball.vx = 0;
+      ball.vy = 0;
+      running = false;
+      firstStartShown = true;
+      drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
+    },
+    () => { aiControls.setAiEnabled(!aiControls.getAiEnabled()); }
+  );
 
   function handleInput() {
-  
-  if (!running) return; 
-
   if (keys.has('KeyW')) p1Y -= PADDLE_SPEED;
   if (keys.has('KeyS')) p1Y += PADDLE_SPEED;
     if (aiControls.getAiEnabled()) {
@@ -714,14 +687,39 @@ loopMain.start();
 
 // Global error handling
 window.addEventListener('error', (event) => {
-  console.error('Uncaught error:', event.error);
+  // ...existing code...
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled promise rejection:', event.reason);
+  // ...existing code...
 });
 
 // Play/Pause button removed (revert)
 
 // Initialize power-ups timer
 nextPuAt = performance.now() + puIntervalMs;
+
+// Forcefully update canvas sizing logic
+function syncCanvasSize() {
+  if (!canvas || !ctx) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  // Ensure minimum logical size
+  const minW = 860, minH = 420;
+  const logicalW = Math.max(rect.width, minW);
+  const logicalH = Math.max(rect.height, minH);
+  canvas.width = logicalW * dpr;
+  canvas.height = logicalH * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  W = logicalW;
+  H = logicalH;
+  // ...existing code...
+}
+syncCanvasSize();
+
+// Update on resize
+window.addEventListener('resize', () => {
+  syncCanvasSize();
+  // Optional: redraw game state on resize
+  drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
+});
