@@ -1,11 +1,13 @@
 import { t } from '../i18n/translations';
 import {
-  getPlayers, getQueue, getSchedule, getPlayerStats, getMatchHistory,
+  getPlayers, getQueue, getSchedule, getPlayerStats, getMatchHistory, getTournamentSchedule,
   addPlayer, addToQueue, removeFromQueue, addSchedule, updateSchedule, upsertStats,
   syncPlayersFromBackend, syncQueueFromBackend, syncScheduleFromBackend, syncPlayerStatsFromBackend,
-  loadState, resetTournament, currentMatchIndex
+  loadState, resetTournament, currentMatchIndex, setCurrentMatchIndex, 
 } from '../state/gameState';
+import { navigateTo } from '../routing/router';
 import { validateAlias } from '../utils/validation';
+import { TournamentSchedule, Match, MatchUpdatePayload } from './tournamentTypes';
 
 function sanitize(input: string): string {
   return input.replace(/[\u0000-\u001F<>]/g, '').replace(/\s+/g, ' ').trim();
@@ -110,13 +112,49 @@ export function renderStatsPage() {
 
 // You will need to reimplement scheduling and match logic using backend APIs.
 // For now, here's a placeholder for starting the next match:
-export function startNextScheduledMatch() {
-  // This should call your backend to update the match status, then sync schedule.
-  // Placeholder: just sync schedule and update UI.
-  syncScheduleFromBackend().then(() => {
-    renderSchedule();
-    renderBracket();
-  });
+export async function startNextScheduledMatch() {
+  await syncScheduleFromBackend();
+  const schedule = getTournamentSchedule();
+  
+  if (!schedule || !schedule.matches || schedule.matches.length === 0) {
+    console.warn('[Tournament] No tournament schedule found or no matches.');
+    // renderMessage('No tournament schedule found or no matches.'); // Wyświetl komunikat użytkownikowi
+    return;
+  }
+
+  const nextMatch = schedule.matches.find(match => match.status === 'pending');
+
+  //   const nextMatch = schedule[nextMatchIndex];
+  //   // Update match status to 'playing' in the backend
+  //   updateSchedule(nextMatch.id, { status: 'playing' }).then(() => {
+  //     // Update local state and UI
+  //     syncScheduleFromBackend().then(() => {
+  //       // Set the current match index in the game state
+  //       (window as any).setCurrentMatchIndex(nextMatchIndex);
+  //       renderSchedule();
+  //       renderBracket();
+  //       // Navigate to the game view to start the match
+  //       (window as any).navigateTo('/game');
+  //     });
+  //   });
+  // } else {
+  //   // No pending matches, maybe show a message or end tournament
+  //   const next = document.getElementById('next-match');
+  //   if (next) next.textContent = t((document.documentElement.lang as any) || 'en', 'tour.noMoreMatches');
+  // }
+
+  if (nextMatch) {
+    console.log('[Tournament] Starting next match:', nextMatch);
+    await updateSchedule(nextMatch.id, 'playing'); // Zaktualizuj status meczu w backendzie
+    await syncScheduleFromBackend(); // Odśwież harmonogram po aktualizacji
+    const updatedSchedule = getTournamentSchedule();
+    const updatedMatchIndex = updatedSchedule?.matches.findIndex(m => m.id === nextMatch.id) || 0;
+    setCurrentMatchIndex(updatedMatchIndex); // Ustaw bieżący indeks meczu
+    navigateTo('/game'); // Przekieruj do widoku gry
+  } else {
+    console.log('[Tournament] No pending matches found. Tournament might be completed or not started.');
+    // renderMessage('No pending matches found. Tournament might be completed or not started.');
+  }
 }
 
 export function initTournamentBindings() {
@@ -206,3 +244,44 @@ export function initTournamentBindings() {
     });
   }
 }
+
+async function fetchTournamentSchedule(): Promise<TournamentSchedule> {
+  try {
+    const response = await fetch(this.baseUrl + '/tournament/schedule', {
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP Error!: status${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching tournament schedule:', error);
+    throw error;
+  }
+}
+
+async function updateMatchStatus(matchId: string, status: 'pending' | 'playing' | 'done', winnerId?: string, score1?: number, score2?: number): Promise<Match> {
+  try {
+    const body: any = { status };
+    if (winnerId) body.winnerId = winnerId;
+    if (score1 !== undefined) body.score1 = score1;
+    if (score2 !== undefined) body.score2 = score2;
+
+    const response = await fetch(`${this.baseUrl}/tournament/matches/${matchId}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP Error!: status${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating match status:', error);
+    throw error;
+  }
+}
+

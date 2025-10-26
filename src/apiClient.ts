@@ -1,5 +1,8 @@
 // Lightweight optional API client. Attempts remote endpoints; falls back silently.
 // This is intentionally minimal to satisfy a remote-ready integration without altering core logic.
+
+import { TournamentSchedule, Match, MatchUpdatePayload } from "./tournament/tournamentTypes";
+
 export interface RemotePlayer { id: string; alias: string }
 export interface RemoteTournament { players: RemotePlayer[]; schedule: any[]; currentMatchIndex: number|null }
 
@@ -48,5 +51,16 @@ export async function upsertPlayerStats(stats: any) {
   return fetch(`${API_URL}/playerStats`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(stats)
+  }).then(res => res.json());
+}
+
+export async function fetchTournamentSchedule(): Promise<TournamentSchedule> {
+  return fetch(`${API_URL}/tournament/schedule`).then(res => res.json());
+}
+
+export async function updateMatchStatus(matchId: string, status: string, winnerId: string, score1: number, score2: number, payload: MatchUpdatePayload): Promise<Match> {
+  return fetch(`${API_URL}/tournament/matches/${matchId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
   }).then(res => res.json());
 }

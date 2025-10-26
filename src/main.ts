@@ -8,10 +8,13 @@ import {
   getPlayers, getQueue, getSchedule, getPlayerStats, getMatchHistory,
   addPlayer, addToQueue, removeFromQueue, addSchedule, updateSchedule, upsertStats,
   syncPlayersFromBackend, syncQueueFromBackend, syncScheduleFromBackend, syncPlayerStatsFromBackend,
-  loadState, resetTournament, currentMatchIndex
+  loadState, resetTournament, currentMatchIndex,
+  getTournamentSchedule
 } from './state/gameState';
 import { initRouter, navigateTo } from './routing/router';
 import { keys, initInputHandlers } from './game/input';
+import { TournamentSchedule, Match, MatchUpdatePayload } from './tournament/tournamentTypes'; // Dodaj ten import
+
 /* Minimal in-file physics shim to satisfy usages in main.ts:
    Provides updateBall(...) returning { ball, lastHit?, scored? }
    and resetBall(...) returning a new ball object. This avoids a
@@ -663,19 +666,21 @@ function handlePowerUps() {
 
 // Hook into winner assignment (poll each frame)
 async function afterScoreUpdateObserver() {
-  if (winner && currentMatchIndex != null && getSchedule()[currentMatchIndex]) {
-    const match = getSchedule()[currentMatchIndex];
-    if (match.status !== 'done') {
-      // Update the match in the backend
-      await updateSchedule(match.id, {
-        status: 'done',
-        winnerId: winner,
-        score1,
-        score2
-      });
+   const schedule = getTournamentSchedule();
+  if (winner && currentMatchIndex != null && schedule && schedule.matches[currentMatchIndex]) {
+    const match = schedule.matches[currentMatchIndex];
+    if (match.status !== 'completed') {
+      let winnerId: string | undefined;
+      if (winner === match.player1Alias) {
+        winnerId = match.player1Id;
+      } else if (winner === match.player2Alias) {
+        winnerId = match.player2Id;
+      } else {
+        winnerId = winner; // Fallback, rozważ bardziej solidną logikę dla AI
+      }
+
+      await updateSchedule(match.id, 'completed', winnerId, score1, score2);
       await syncScheduleFromBackend();
-      renderSchedule();
-      renderBracket();
     }
   }
 }
