@@ -66,6 +66,35 @@ services:
       timeout: 10s
       retries: 5
 
+  kibana-setup:
+    image: curlimages/curl:8.10.1
+    container_name: pong-kibana-setup
+    depends_on:
+      kibana:
+        condition: service_healthy
+    networks:
+      - elk-network
+    command: >
+      sh -c '
+        echo "Waiting for Kibana to be ready..." &&
+        sleep 20 &&
+        echo "Creating data views in Kibana..." &&
+
+        # Frontend data view
+        curl -X POST "http://kibana:5601/api/data_views/data_view" -H "kbn-xsrf: true" -H "Content-Type: application/json" -d "{\"data_view\": {\"title\": \"pong-frontend-*\", \"name\": \"pong-frontend\", \"timeFieldName\": \"@timestamp\"}}"
+
+        # Backend data view
+        curl -X POST "http://kibana:5601/api/data_views/data_view" -H "kbn-xsrf: true" -H "Content-Type: application/json" -d "{\"data_view\": {\"title\": \"pong-backend-*\", \"name\": \"pong-backend\", \"timeFieldName\": \"@timestamp\"}}"
+
+        # Nginx data view
+        curl -X POST "http://kibana:5601/api/data_views/data_view" -H "kbn-xsrf: true" -H "Content-Type: application/json" -d "{\"data_view\": {\"title\": \"pong-nginx-*\", \"name\": \"pong-nginx\", \"timeFieldName\": \"@timestamp\"}}"
+
+        # Database data view
+        curl -X POST "http://kibana:5601/api/data_views/data_view" -H "kbn-xsrf: true" -H "Content-Type: application/json" -d "{\"data_view\": {\"title\": \"pong-database-*\", \"name\": \"pong-database\", \"timeFieldName\": \"@timestamp\"}}"
+
+        echo "✅ Data views created successfully!"
+      '
+
 volumes:
   elasticsearch-data:
     driver: local

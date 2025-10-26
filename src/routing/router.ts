@@ -1,3 +1,4 @@
+import { sendLog_frontend } from '../elk_logs';
 import { applyTranslations } from '../i18n/translations';
 import type { Lang } from '../i18n/translations';
 
@@ -53,6 +54,9 @@ export function showRoute(path: string) {
 }
 
 export function navigateTo(path: string, replace = false) {
+
+  sendLog_frontend('navigateTo',"Navigating to " + path, { path });
+  
   const normalized = showRoute(path);
   if (normalized === window.location.pathname) {
     if (replace) history.replaceState({}, '', normalized);
@@ -85,3 +89,4 @@ export function initRouter(langGetter: () => Lang) {
     }
   });
 }
+
