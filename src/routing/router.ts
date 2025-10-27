@@ -20,6 +20,22 @@ export function showRoute(path: string) {
     if (p) { p.classList.remove('visible'); }
   });
 
+  // Stop the game loop if navigating away from the game page
+  const currentPath = window.location.pathname;
+  if (currentPath === '/game' && path !== '/game') {
+    console.log('[nav] Navigating away from /game. Attempting to stop game.');
+    try {
+      if ((window as any).game && (window as any).game.stop) {
+        (window as any).game.stop();
+        console.log('[nav] Game stop function called successfully.');
+      } else {
+        console.warn('[nav] Game stop function not found on window.game.');
+      }
+    } catch (e) {
+      console.error('[nav] Error stopping game:', e);
+    }
+  }
+
   switch (path) {
     case '/':
       if (pages.home) pages.home.classList.add('visible');

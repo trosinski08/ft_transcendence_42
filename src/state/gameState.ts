@@ -6,6 +6,10 @@ import {
   fetchTournamentSchedule
 } from '../apiClient';
 
+// Import funkcji odświeżających UI
+import { updateTournamentView } from '../tournament/tournament';
+// Removed duplicate 'from' statement
+
 import {TournamentSchedule, Match, MatchUpdatePayload} from '../tournament/tournamentTypes';
 import { t } from '../i18n/translations';
 
@@ -24,39 +28,93 @@ export let currentMatchIndex: number | null = null;
 
 export async function syncPlayersFromBackend() {
   players = await fetchPlayers();
+  updateTournamentView();
 }
 export async function syncQueueFromBackend() {
   queue = await fetchQueue();
+  updateTournamentView();
 }
 export async function syncScheduleFromBackend() {
   try {
-    tournamentSchedule = await fetchTournamentSchedule();
-    console.log('Tournament schedule synced from backend:', tournamentSchedule);
+    const matches: Match[] = await fetchTournamentSchedule();
+   if (matches && matches.length > 0) {
+      tournamentSchedule = {
+        id: 'current-tournament',
+        name: 'Current Tournament',
+        status: 'started',
+        players: getPlayers(),
+        matches: matches,
+        currentRound: 1
+      };
+    } else {
+      tournamentSchedule = null;
+    }
+
+    console.log('Tournament schedule state updated:', tournamentSchedule); // Zmieniony log dla jasności
+    updateTournamentView();
     return true;
   } catch (error) {
     console.error('Error syncing tournament schedule from backend:', error);
     tournamentSchedule = null;
+    updateTournamentView();
     return false; 
   }
 }
+
 export async function syncPlayerStatsFromBackend() {
   playerStats = await fetchPlayerStats();
 }
 export async function addPlayer(alias: string) {
   await apiAddPlayer(alias);
   await syncPlayersFromBackend();
+  await syncQueueFromBackend();
+  await syncScheduleFromBackend();
+  await syncPlayerStatsFromBackend();
+  console.log('[gameState] addPlayer: synchronizacja zakończona', {
+    players,
+    queue,
+    schedule,
+    playerStats
+  });
 }
 export async function addToQueue(playerId: string) {
   await addQueueEntry(playerId);
   await syncQueueFromBackend();
+  await syncPlayersFromBackend();
+  await syncScheduleFromBackend();
+  await syncPlayerStatsFromBackend();
+  console.log('[gameState] addToQueue: synchronizacja zakończona', {
+    players,
+    queue,
+    schedule,
+    playerStats
+  });
 }
 export async function removeFromQueue(playerId: string) {
   await removeQueueEntry(playerId);
   await syncQueueFromBackend();
+  await syncPlayersFromBackend();
+  await syncScheduleFromBackend();
+  await syncPlayerStatsFromBackend();
+  console.log('[gameState] removeFromQueue: synchronizacja zakończona', {
+    players,
+    queue,
+    schedule,
+    playerStats
+  });
 }
 export async function addSchedule(p1Id: string, p2Id: string) {
   await addScheduleEntry(p1Id, p2Id);
-  // await syncScheduleFromBackend();
+  await syncScheduleFromBackend();
+  await syncPlayersFromBackend();
+  await syncQueueFromBackend();
+  await syncPlayerStatsFromBackend();
+  console.log('[gameState] addSchedule: synchronizacja zakończona', {
+    players,
+    queue,
+    schedule,
+    playerStats
+  });
 }
 export async function updateSchedule(matchId: string, status: 'pending' | 'playing' | 'completed', winnerId?: string, score1?: number, score2?: number) {
   try {
@@ -69,6 +127,16 @@ export async function updateSchedule(matchId: string, status: 'pending' | 'playi
         console.log(`[gameState] Match ${matchId} updated to status ${status}`);
       }
     }
+    await syncScheduleFromBackend();
+    await syncPlayersFromBackend();
+    await syncQueueFromBackend();
+    await syncPlayerStatsFromBackend();
+    console.log('[gameState] updateSchedule: synchronizacja zakończona', {
+      players,
+      queue,
+      schedule,
+      playerStats
+    });
     return true;
   } catch (error) {
     console.error(`[gameState] Error updating match ${matchId} status:`, error);

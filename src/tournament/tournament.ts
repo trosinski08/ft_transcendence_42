@@ -45,14 +45,16 @@ export function renderSchedule() {
   const list = document.getElementById('schedule-list');
   if (!list) return;
   list.innerHTML = '';
-  getSchedule().forEach((m, idx) => {
+  const schedule = getTournamentSchedule();
+  const matches = schedule && Array.isArray(schedule.matches) ? schedule.matches : [];
+  matches.forEach((m, idx) => {
     const li = document.createElement('li');
-    const label = `${m.p1.alias} ${t((document.documentElement.lang as any) || 'en', 'common.vs')} ${m.p2.alias}`;
-    let statusChar = '';
-    if (m.status === 'pending') statusChar = '⏳';
-    else if (m.status === 'playing') statusChar = '▶';
-    else if (m.status === 'done') statusChar = `✔${m.winnerId ? ' ' + t((document.documentElement.lang as any) || 'en', 'tour.winner') + ': ' + (m.p1.id === m.winnerId ? m.p1.alias : m.p2.alias) : ''}`;
-    li.textContent = `${label} ${statusChar}`;
+  const label = `${m.player1Alias} ${t((document.documentElement.lang as any) || 'en', 'common.vs')} ${m.player2Alias}`;
+  let statusChar = '';
+  if (m.status === 'pending') statusChar = '⏳';
+  else if (m.status === 'playing') statusChar = '▶';
+  else if (m.status === 'completed') statusChar = `✔${m.winnerId ? ' ' + t((document.documentElement.lang as any) || 'en', 'tour.winner') + ': ' + (m.player1Id === m.winnerId ? m.player1Alias : m.player2Alias) : ''}`;
+  li.textContent = `${label} ${statusChar}`;
     if (idx === currentMatchIndex) li.style.fontWeight = 'bold';
     list.appendChild(li);
   });
@@ -62,10 +64,12 @@ export function renderBracket() {
   const container = document.getElementById('bracket');
   if (!container) return;
   container.innerHTML = '';
-  getSchedule().forEach((m, idx) => {
+  const schedule = getTournamentSchedule();
+  const matches = schedule && Array.isArray(schedule.matches) ? schedule.matches : [];
+  matches.forEach((m, idx) => {
     const div = document.createElement('div');
     div.style.marginBottom = '6px';
-    div.textContent = t((document.documentElement.lang as any) || 'en', 'tour.match', { n: idx + 1, p1: m.p1.alias, p2: m.p2.alias }) + (m.status === 'done' ? ' → ' + (m.winnerId ? (m.p1.id === m.winnerId ? m.p1.alias : m.p2.alias) : '') : '');
+  div.textContent = t((document.documentElement.lang as any) || 'en', 'tour.match', { n: idx + 1, p1: m.player1Alias, p2: m.player2Alias }) + (m.status === 'completed' ? ' → ' + (m.winnerId ? (m.player1Id === m.winnerId ? m.player1Alias : m.player2Alias) : '') : '');
     container.appendChild(div);
   });
 }
@@ -158,6 +162,7 @@ export async function startNextScheduledMatch() {
 }
 
 export function initTournamentBindings() {
+  updateTournamentView(); // Wywołaj przy pierwszym załadowaniu
   const registerForm = document.getElementById('register-form') as HTMLFormElement | null;
   if (registerForm) {
     registerForm.addEventListener('submit', async (ev) => {
@@ -217,7 +222,9 @@ export function initTournamentBindings() {
         await addSchedule(p1.id, p2.id);
       }
       await syncScheduleFromBackend();
-      if (!getSchedule().length) {
+      const schedule = getTournamentSchedule();
+      const matches = schedule && Array.isArray(schedule.matches) ? schedule.matches : [];
+      if (!matches.length) {
         const next = document.getElementById('next-match');
         if (next) next.textContent = t((document.documentElement.lang as any) || 'en', 'tour.needTwo');
         return;
@@ -245,43 +252,50 @@ export function initTournamentBindings() {
   }
 }
 
-async function fetchTournamentSchedule(): Promise<TournamentSchedule> {
-  try {
-    const response = await fetch(this.baseUrl + '/tournament/schedule', {
-      headers: this.getAuthHeaders(),
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP Error!: status${response.statusText}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching tournament schedule:', error);
-    throw error;
-  }
+export function initTournamentPage() {
+  initTournamentBindings();
+  updateTournamentView(); // Wywołaj przy pierwszym załadowaniu
 }
 
-async function updateMatchStatus(matchId: string, status: 'pending' | 'playing' | 'done', winnerId?: string, score1?: number, score2?: number): Promise<Match> {
-  try {
-    const body: any = { status };
-    if (winnerId) body.winnerId = winnerId;
-    if (score1 !== undefined) body.score1 = score1;
-    if (score2 !== undefined) body.score2 = score2;
+// CENTRALNA FUNKCJA DO ODŚWIEŻANIA CAŁEGO WIDOKU TURNIEJU
+export function updateTournamentView() {
+  console.log('[UI] Updating entire tournament view...');
+  updatePlayers();
+  updateQueue();
+  renderSchedule();
 
-    const response = await fetch(`${this.baseUrl}/tournament/matches/${matchId}/status`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getAuthHeaders(),
-      },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP Error!: status${response.statusText}`);
+  const queue = getQueue();
+  const schedule = getTournamentSchedule();
+  const startBtn = document.getElementById('start-tournament') as HTMLButtonElement | null;
+  const nextMatchBtn = document.getElementById('next-match-btn') as HTMLButtonElement | null;
+  const nextMatchText = document.getElementById('next-match');
+
+  if (!startBtn || !nextMatchBtn || !nextMatchText) return;
+
+  // Logika sterująca widocznością i stanem przycisków
+  if (schedule && schedule.matches && schedule.matches.length > 0) {
+    // Jest już harmonogram, więc ukryj przycisk Start i pokaż Next Match
+    startBtn.style.display = 'none';
+    nextMatchBtn.style.display = 'inline-block';
+    const pendingMatch = schedule.matches.find(m => m.status === 'pending');
+    if (pendingMatch) {
+      nextMatchText.textContent = `${sanitize(pendingMatch.player1Alias)} vs ${sanitize(pendingMatch.player2Alias)}`;
+      nextMatchBtn.disabled = false;
+    } else {
+      nextMatchText.textContent = t((document.documentElement.lang as any) || 'en', 'tour.allMatchesCompleted');
+      nextMatchBtn.disabled = true;
     }
-    return await response.json();
-  } catch (error) {
-    console.error('Error updating match status:', error);
-    throw error;
+  } else {
+    // Nie ma harmonogramu, pokaż przycisk Start i ukryj Next Match
+    startBtn.style.display = 'inline-block';
+    nextMatchBtn.style.display = 'none';
+    if (queue.length >= 2) {
+      startBtn.disabled = false;
+      nextMatchText.textContent = t((document.documentElement.lang as any) || 'en', 'tour.readyToStart');
+    } else {
+      startBtn.disabled = true;
+      nextMatchText.textContent = t((document.documentElement.lang as any) || 'en', 'tour.needTwo');
+    }
   }
 }
 

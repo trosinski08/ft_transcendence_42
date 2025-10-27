@@ -54,12 +54,22 @@ export async function upsertPlayerStats(stats: any) {
   }).then(res => res.json());
 }
 
-export async function fetchTournamentSchedule(): Promise<TournamentSchedule> {
-  return fetch(`${API_URL}/tournament/schedule`).then(res => res.json());
+export async function fetchTournamentSchedule(): Promise<Match[]> {
+  try {
+    const response = await fetch('/api/schedule');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data as Match[];
+  } catch (error) {
+    console.error('Error fetching tournament schedule:', error);
+    return [];
+  }
 }
 
 export async function updateMatchStatus(matchId: string, status: string, winnerId: string, score1: number, score2: number, payload: MatchUpdatePayload): Promise<Match> {
-  return fetch(`${API_URL}/tournament/matches/${matchId}`, {
+  return fetch(`${API_URL}/schedule/${matchId}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }).then(res => res.json());
