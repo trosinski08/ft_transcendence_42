@@ -21,6 +21,7 @@ import { createFourController } from './game/fourPlayer';
 import * as effects from './game/effects';
 import * as aiControls from './game/aiControls';
 import * as settingsUi from './game/settingsUi';
+import { run } from 'node:test';
 
 // --- ELK Logging ---
 async function sendLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, metadata?: Record<string, any>) {
@@ -182,6 +183,8 @@ let H = canvas?.height || 420;
       return;
     }
     running = val;
+    if (!running)
+        keys.clear();
     if (running) {
       // Jeśli piłka stoi, nadaj jej prędkość startową
       if (ball.vx === 0 && ball.vy === 0) {
@@ -191,15 +194,12 @@ let H = canvas?.height || 420;
         ball.vy = vy;
       }
       firstStartShown = false;
-  // ...existing code...
     }
     updatePlayButtonUI();
     try {
       drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
     } catch (e) {
-  // ...existing code...
     }
-  // ...existing code...
   }
 
   function toggleRunning() { setRunning(!running); }
@@ -288,25 +288,27 @@ let H = canvas?.height || 420;
   );
 
   function handleInput() {
-  if (keys.has('KeyW')) p1Y -= PADDLE_SPEED;
-  if (keys.has('KeyS')) p1Y += PADDLE_SPEED;
-    if (aiControls.getAiEnabled()) {
-      const cfg = DIFFICULTY_PRESETS[aiControls.getAiDifficulty()];
-      const nextY = nextAIPaddleY(
-        { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, r: ball.r },
-  { y: p2Y, height: p2H },
-        { width: W, height: H },
-        cfg,
-        W - ARENA.RIGHT_X_OFFSET - paddleW
-      );
-      const delta = Math.max(-PADDLE_SPEED, Math.min(PADDLE_SPEED, nextY - p2Y));
-      p2Y += delta;
-    } else {
-      if (keys.has('ArrowUp')) p2Y -= PADDLE_SPEED;
-      if (keys.has('ArrowDown')) p2Y += PADDLE_SPEED;
+    if (running) {
+      if (keys.has('KeyW')) p1Y -= PADDLE_SPEED;
+      if (keys.has('KeyS')) p1Y += PADDLE_SPEED;
+        if (aiControls.getAiEnabled()) {
+          const cfg = DIFFICULTY_PRESETS[aiControls.getAiDifficulty()];
+          const nextY = nextAIPaddleY(
+            { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, r: ball.r },
+      { y: p2Y, height: p2H },
+            { width: W, height: H },
+            cfg,
+            W - ARENA.RIGHT_X_OFFSET - paddleW
+          );
+          const delta = Math.max(-PADDLE_SPEED, Math.min(PADDLE_SPEED, nextY - p2Y));
+          p2Y += delta;
+        } else {
+          if (keys.has('ArrowUp')) p2Y -= PADDLE_SPEED;
+          if (keys.has('ArrowDown')) p2Y += PADDLE_SPEED;
+        }
+        p1Y = Math.max(ARENA.PADDING_TOP, Math.min(H - p1H - ARENA.PADDING_BOTTOM, p1Y));
+        p2Y = Math.max(ARENA.PADDING_TOP, Math.min(H - p2H - ARENA.PADDING_BOTTOM, p2Y));
     }
-    p1Y = Math.max(ARENA.PADDING_TOP, Math.min(H - p1H - ARENA.PADDING_BOTTOM, p1Y));
-    p2Y = Math.max(ARENA.PADDING_TOP, Math.min(H - p2H - ARENA.PADDING_BOTTOM, p2Y));
     setTimeout(handleInput, 12);
   }
 
