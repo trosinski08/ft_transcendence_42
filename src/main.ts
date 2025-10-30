@@ -645,9 +645,9 @@ async function afterScoreUpdateObserver() {
     if (match.status !== 'completed') {
       let winnerId: string | undefined;
       if (winner === match.player1Alias) {
-        winnerId = match.player1Id;
+        winnerId = match.p1Id;
       } else if (winner === match.player2Alias) {
-        winnerId = match.player2Id;
+        winnerId = match.p2Id;
       } else {
         winnerId = winner; // Fallback, rozważ bardziej solidną logikę dla AI
       }

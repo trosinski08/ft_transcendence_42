@@ -53,7 +53,7 @@ export function renderSchedule() {
   let statusChar = '';
   if (m.status === 'pending') statusChar = '⏳';
   else if (m.status === 'playing') statusChar = '▶';
-  else if (m.status === 'completed') statusChar = `✔${m.winnerId ? ' ' + t((document.documentElement.lang as any) || 'en', 'tour.winner') + ': ' + (m.player1Id === m.winnerId ? m.player1Alias : m.player2Alias) : ''}`;
+  else if (m.status === 'completed') statusChar = `✔${m.winnerId ? ' ' + t((document.documentElement.lang as any) || 'en', 'tour.winner') + ': ' + (m.p1Id === m.winnerId ? m.player1Alias : m.player2Alias) : ''}`;
   li.textContent = `${label} ${statusChar}`;
     if (idx === currentMatchIndex) li.style.fontWeight = 'bold';
     list.appendChild(li);
@@ -69,7 +69,7 @@ export function renderBracket() {
   matches.forEach((m, idx) => {
     const div = document.createElement('div');
     div.style.marginBottom = '6px';
-  div.textContent = t((document.documentElement.lang as any) || 'en', 'tour.match', { n: idx + 1, p1: m.player1Alias, p2: m.player2Alias }) + (m.status === 'completed' ? ' → ' + (m.winnerId ? (m.player1Id === m.winnerId ? m.player1Alias : m.player2Alias) : '') : '');
+  div.textContent = t((document.documentElement.lang as any) || 'en', 'tour.match', { n: idx + 1, p1: m.player1Alias, p2: m.player2Alias }) + (m.status === 'completed' ? ' → ' + (m.winnerId ? (m.p1Id === m.winnerId ? m.player1Alias : m.player2Alias) : '') : '');
     container.appendChild(div);
   });
 }
@@ -279,7 +279,7 @@ export function updateTournamentView() {
     nextMatchBtn.style.display = 'inline-block';
     const pendingMatch = schedule.matches.find(m => m.status === 'pending');
     if (pendingMatch) {
-      nextMatchText.textContent = `${sanitize(pendingMatch.player1Alias)} vs ${sanitize(pendingMatch.player2Alias)}`;
+      nextMatchText.textContent = `${sanitize(pendingMatch.p1Id)} vs ${sanitize(pendingMatch.player2Alias)}`;
       nextMatchBtn.disabled = false;
     } else {
       nextMatchText.textContent = t((document.documentElement.lang as any) || 'en', 'tour.allMatchesCompleted');

@@ -14,8 +14,8 @@ export type PlayerStats = {
 
 export type Match = {
   id: string;
-  player1Id: string;
-  player2Id: string;
+  p1Id: string;
+  p2Id: string;
   player1Alias: string; // Zdenormalizowane dla łatwiejszego wyświetlania
   player2Alias: string; // Zdenormalizowane dla łatwiejszego wyświetlania
   status: 'pending' | 'playing' | 'completed'; // Zmieniono 'done' na 'completed'

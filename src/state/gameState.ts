@@ -12,6 +12,7 @@ import { updateTournamentView } from '../tournament/tournament';
 
 import {TournamentSchedule, Match, MatchUpdatePayload} from '../tournament/tournamentTypes';
 import { t } from '../i18n/translations';
+import { get } from 'http';
 
 export type Player = { id: string; alias: string };
 export type PlayerStats = { id: string; playerId: string; wins: number; losses: number; streak: number; rating: number };
@@ -36,16 +37,23 @@ export async function syncQueueFromBackend() {
 }
 export async function syncScheduleFromBackend() {
   try {
-    const matches: Match[] = await fetchTournamentSchedule();
-   if (matches && matches.length > 0) {
-      tournamentSchedule = {
-        id: 'current-tournament',
-        name: 'Current Tournament',
-        status: 'started',
-        players: getPlayers(),
-        matches: matches,
-        currentRound: 1
-      };
+    const matchesFromBackend: Match[] = await fetchTournamentSchedule();
+    if (matchesFromBackend && matchesFromBackend.length > 0) {
+      const allPlayers = getPlayers();
+      const playerMap = new Map(allPlayers.map(p => [p.id, p.alias]));
+      const enrichedMatches = matchesFromBackend.map(match => ({
+        ...match,
+        p1IdAlias: playerMap.get(match.p1Id) || 'Unknown',
+        player2Alias: playerMap.get(match.p2Id) || 'Unknown',
+      }));
+        tournamentSchedule = {
+          id: 'current-tournament',
+          name: 'Current Tournament',
+          status: 'started',
+          players: getPlayers(),
+          matches: enrichedMatches,
+          currentRound: 1
+        };
     } else {
       tournamentSchedule = null;
     }
