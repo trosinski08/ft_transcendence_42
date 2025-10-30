@@ -12,7 +12,7 @@ function circleRectIntersect(cx: number, cy: number, r: number, rx: number, ry: 
 export function resetBall(W: number, H: number, initVx: number, initVyRange: number, radius: number, direction: number = 1): Ball {
   const vy = (Math.random() - 0.5) * initVyRange;
   const newBall = { x: W / 2, y: H / 2, vx: direction * initVx, vy, r: radius };
-  // ...existing code...
+ 
   return newBall;
 }
 
@@ -21,7 +21,7 @@ export function updateBall(ball: Ball, p1Y: number, p1H: number, p2Y: number, p2
 }) {
   const { W, H, ARENA_LEFT_X, ARENA_RIGHT_X_OFFSET, ARENA_PADDING_TOP = 0, ARENA_PADDING_BOTTOM = 0, paddleW, BALL_SPEED_INC_FACTOR, BALL_MAX_SPEED } = params;
   // Diagnostic log for debugging arena and ball state
-  // ...existing code...
+ 
   let scored: 'left' | 'right' | null = null;
   let lastHit: 1 | 2 | null = null;
 

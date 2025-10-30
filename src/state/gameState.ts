@@ -20,12 +20,39 @@ export type MatchEntry = { id: string; p1: Player; p2: Player; winnerId?: string
 export type ScheduleEntry = MatchEntry;
 
 let players: Player[] = [];
+
+/**
+ * Mapuje identyfikatory graczy na aliasy/nazwy z backendu.
+ * @param playerIds - tablica identyfikatorów graczy
+ * @returns tablica aliasów/nazw graczy
+ */
+export function mapPlayerAliases(playerIds: string[]): string[] {
+  return playerIds.map(id => {
+    const found = players.find(p => p.id === id);
+    return found?.alias || 'unknown';
+  });
+}
 let queue: { id: string; position: number; player: Player; playerId: string }[] = [];
 let schedule: ScheduleEntry[] = [];
 let playerStats: PlayerStats[] = [];
 let matchHistory: MatchEntry[] = [];
 let tournamentSchedule: TournamentSchedule | null = null;
 export let currentMatchIndex: number | null = null;
+let currentMatchId: string | null = null;
+
+export function setCurrentMatch(matchId: string | null) {
+  currentMatchId = matchId;
+  if (matchId && tournamentSchedule) {
+    currentMatchIndex = tournamentSchedule.matches.findIndex(m => m.id === matchId);
+  } else {
+    currentMatchIndex = null;
+  }
+}
+
+export function getCurrentMatch() {
+  if (!tournamentSchedule || !currentMatchId) return null;
+  return tournamentSchedule.matches.find(m => m.id === currentMatchId) || null;
+}
 
 export async function syncPlayersFromBackend() {
   players = await fetchPlayers();
@@ -39,6 +66,7 @@ export async function syncScheduleFromBackend() {
   try {
     const matchesFromBackend: Match[] = await fetchTournamentSchedule();
     if (matchesFromBackend && matchesFromBackend.length > 0) {
+      await syncPlayersFromBackend(); 
       const allPlayers = getPlayers();
       const playerMap = new Map(allPlayers.map(p => [p.id, p.alias]));
       const enrichedMatches = matchesFromBackend.map(match => ({

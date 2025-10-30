@@ -2,7 +2,6 @@ import { t } from '../i18n/translations';
 import { ARENA } from '../game/constants';
 
 export function drawMain(ctx: CanvasRenderingContext2D | null, state: any) {
-  // ...existing code...
   if (!ctx) return;
   const {
     W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg,

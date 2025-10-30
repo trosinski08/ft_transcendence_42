@@ -9,7 +9,7 @@ import {
   addPlayer, addToQueue, removeFromQueue, addSchedule, updateSchedule, upsertStats,
   syncPlayersFromBackend, syncQueueFromBackend, syncScheduleFromBackend, syncPlayerStatsFromBackend,
   loadState, resetTournament, currentMatchIndex,
-  getTournamentSchedule
+  getTournamentSchedule, mapPlayerAliases
 } from './state/gameState';
 import { initRouter, navigateTo } from './routing/router';
 import { keys, initInputHandlers } from './game/input';
@@ -147,8 +147,12 @@ let H = canvas?.height || 420;
     const p2a = document.getElementById('p2-alias');
     if (!p2a) return;
     if (enabled) p2a.textContent = t(currentLang, 'game.ai');
-  else if (currentMatchIndex != null && getSchedule()[currentMatchIndex]) p2a.textContent = getSchedule()[currentMatchIndex].p2.alias;
-    else p2a.textContent = t(currentLang, 'game.player2');
+    else if (currentMatchIndex != null && getSchedule()[currentMatchIndex]) {
+      // Dynamiczne aliasy graczy
+      const match = getSchedule()[currentMatchIndex];
+      const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
+      p2a.textContent = aliases[1];
+    } else p2a.textContent = t(currentLang, 'game.player2');
   }, (d) => { /* difficulty changed, no-op */ });
 
 
@@ -177,9 +181,9 @@ let H = canvas?.height || 420;
   }
 
   function setRunning(val: boolean) {
-  // ...existing code...
+ 
     if (winner) {
-  // ...existing code...
+ 
       return;
     }
     running = val;
@@ -253,17 +257,33 @@ let H = canvas?.height || 420;
         ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS, (result.scored === 'left' ? 1 : -1));
         ball.vx = 0;
         ball.vy = 0;
-  // ...existing code...
+ 
         running = false;
         firstStartShown = true;
         if (result.scored === 'left') {
           score2 += 1; updateScoreUI();
           afterScoreUpdateObserver();
-          if (score2 >= WIN_SCORE) { winner = (document.getElementById('p2-alias')?.textContent || t(currentLang, 'game.player2')); }
+          if (score2 >= WIN_SCORE) {
+            const match = currentMatchIndex != null ? getSchedule()[currentMatchIndex] : null;
+            if (match) {
+              const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
+              winner = aliases[1];
+            } else {
+              winner = t(currentLang, 'game.player2');
+            }
+          }
         } else if (result.scored === 'right') {
           score1 += 1; updateScoreUI();
           afterScoreUpdateObserver();
-          if (score1 >= WIN_SCORE) { winner = (document.getElementById('p1-alias')?.textContent || t(currentLang, 'game.player1')); }
+          if (score1 >= WIN_SCORE) {
+            const match = currentMatchIndex != null ? getSchedule()[currentMatchIndex] : null;
+            if (match) {
+              const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
+              winner = aliases[0];
+            } else {
+              winner = t(currentLang, 'game.player1');
+            }
+          }
         }
       }
     }
@@ -599,10 +619,26 @@ function applyPowerUp(type: PowerUpType, collector: 1|2) {
     case 'POINT': {
       if (collector === 1) {
         score1 += 1; updateScoreUI(); afterScoreUpdateObserver();
-        if (score1 >= WIN_SCORE) { winner = (document.getElementById('p1-alias')?.textContent || t(currentLang, 'game.player1')); }
+        if (score1 >= WIN_SCORE) {
+          const match = currentMatchIndex != null ? getSchedule()[currentMatchIndex] : null;
+          if (match) {
+            const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
+            winner = aliases[0];
+          } else {
+            winner = t(currentLang, 'game.player1');
+          }
+        }
       } else {
         score2 += 1; updateScoreUI(); afterScoreUpdateObserver();
-        if (score2 >= WIN_SCORE) { winner = (document.getElementById('p2-alias')?.textContent || t(currentLang, 'game.player2')); }
+        if (score2 >= WIN_SCORE) {
+          const match = currentMatchIndex != null ? getSchedule()[currentMatchIndex] : null;
+          if (match) {
+            const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
+            winner = aliases[1];
+          } else {
+            winner = t(currentLang, 'game.player2');
+          }
+        }
       }
       showPuMsg('game.powerup.point');
       break;
@@ -689,11 +725,11 @@ loopMain.start();
 
 // Global error handling
 window.addEventListener('error', (event) => {
-  // ...existing code...
+ 
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  // ...existing code...
+ 
 });
 
 // Play/Pause button removed (revert)
@@ -715,7 +751,7 @@ function syncCanvasSize() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   W = logicalW;
   H = logicalH;
-  // ...existing code...
+ 
 }
 syncCanvasSize();
 

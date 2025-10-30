@@ -3,7 +3,7 @@ import {
   getPlayers, getQueue, getSchedule, getPlayerStats, getMatchHistory, getTournamentSchedule,
   addPlayer, addToQueue, removeFromQueue, addSchedule, updateSchedule, upsertStats,
   syncPlayersFromBackend, syncQueueFromBackend, syncScheduleFromBackend, syncPlayerStatsFromBackend,
-  loadState, resetTournament, currentMatchIndex, setCurrentMatchIndex, 
+  loadState, resetTournament, currentMatchIndex, setCurrentMatchIndex, getCurrentMatch, setCurrentMatch
 } from '../state/gameState';
 import { navigateTo } from '../routing/router';
 import { validateAlias } from '../utils/validation';
@@ -49,15 +49,32 @@ export function renderSchedule() {
   const matches = schedule && Array.isArray(schedule.matches) ? schedule.matches : [];
   matches.forEach((m, idx) => {
     const li = document.createElement('li');
-  const label = `${m.player1Alias} ${t((document.documentElement.lang as any) || 'en', 'common.vs')} ${m.player2Alias}`;
-  let statusChar = '';
-  if (m.status === 'pending') statusChar = '⏳';
-  else if (m.status === 'playing') statusChar = '▶';
-  else if (m.status === 'completed') statusChar = `✔${m.winnerId ? ' ' + t((document.documentElement.lang as any) || 'en', 'tour.winner') + ': ' + (m.p1Id === m.winnerId ? m.player1Alias : m.player2Alias) : ''}`;
-  li.textContent = `${label} ${statusChar}`;
-    if (idx === currentMatchIndex) li.style.fontWeight = 'bold';
+    li.className = 'match-item';
+    li.setAttribute('data-match-id', m.id);
+    const label = `${m.player1Alias || 'TBD'} ${t((document.documentElement.lang as any) || 'en', 'common.vs')} ${m.player2Alias || 'TBD'}`;
+    let statusChar = '';
+    if (m.status === 'pending') statusChar = '⏳';
+    else if (m.status === 'playing') statusChar = '▶';
+    else if (m.status === 'completed') statusChar = `✔${m.winnerId ? ' ' + t((document.documentElement.lang as any) || 'en', 'tour.winner') + ': ' + (m.p1Id === m.winnerId ? m.player1Alias : m.player2Alias) : ''}`;
+    li.textContent = `${label} ${statusChar}`;
+  if (m.id === getCurrentMatch()?.id) li.style.fontWeight = 'bold';
+    li.addEventListener('click', () => {
+      setCurrentMatch(m.id);
+      renderSchedule();
+    });
     list.appendChild(li);
   });
+}
+export function handleNextGameClick() {
+  const schedule = getTournamentSchedule();
+  if (!schedule) return;
+  const nextMatch = schedule.matches.find(m => m.status === 'pending');
+  if (nextMatch) {
+    setCurrentMatch(nextMatch.id);
+    renderSchedule();
+  } else {
+    alert('No more games to play!');
+  }
 }
 
 export function renderBracket() {
@@ -114,8 +131,7 @@ export function renderStatsPage() {
   });
 }
 
-// You will need to reimplement scheduling and match logic using backend APIs.
-// For now, here's a placeholder for starting the next match:
+
 export async function startNextScheduledMatch() {
   await syncScheduleFromBackend();
   const schedule = getTournamentSchedule();
@@ -127,25 +143,6 @@ export async function startNextScheduledMatch() {
   }
 
   const nextMatch = schedule.matches.find(match => match.status === 'pending');
-
-  //   const nextMatch = schedule[nextMatchIndex];
-  //   // Update match status to 'playing' in the backend
-  //   updateSchedule(nextMatch.id, { status: 'playing' }).then(() => {
-  //     // Update local state and UI
-  //     syncScheduleFromBackend().then(() => {
-  //       // Set the current match index in the game state
-  //       (window as any).setCurrentMatchIndex(nextMatchIndex);
-  //       renderSchedule();
-  //       renderBracket();
-  //       // Navigate to the game view to start the match
-  //       (window as any).navigateTo('/game');
-  //     });
-  //   });
-  // } else {
-  //   // No pending matches, maybe show a message or end tournament
-  //   const next = document.getElementById('next-match');
-  //   if (next) next.textContent = t((document.documentElement.lang as any) || 'en', 'tour.noMoreMatches');
-  // }
 
   if (nextMatch) {
     console.log('[Tournament] Starting next match:', nextMatch);
@@ -257,7 +254,6 @@ export function initTournamentPage() {
   updateTournamentView(); // Wywołaj przy pierwszym załadowaniu
 }
 
-// CENTRALNA FUNKCJA DO ODŚWIEŻANIA CAŁEGO WIDOKU TURNIEJU
 export function updateTournamentView() {
   console.log('[UI] Updating entire tournament view...');
   updatePlayers();
@@ -279,7 +275,9 @@ export function updateTournamentView() {
     nextMatchBtn.style.display = 'inline-block';
     const pendingMatch = schedule.matches.find(m => m.status === 'pending');
     if (pendingMatch) {
-      nextMatchText.textContent = `${sanitize(pendingMatch.p1Id)} vs ${sanitize(pendingMatch.player2Alias)}`;
+      const p1Alias = pendingMatch.player1Alias || 'TBD';
+      const p2Alias = pendingMatch.player2Alias || 'TBD';
+      nextMatchText.textContent = `${sanitize(p1Alias)} vs ${sanitize(p2Alias)}`;
       nextMatchBtn.disabled = false;
     } else {
       nextMatchText.textContent = t((document.documentElement.lang as any) || 'en', 'tour.allMatchesCompleted');

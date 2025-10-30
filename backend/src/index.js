@@ -1,4 +1,5 @@
-// Fastify mock backend for ft_transendence42
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 const fastify = require('fastify')({ logger: true });
 const cors = require('@fastify/cors');
 const { PrismaClient } = require('@prisma/client');
@@ -55,6 +56,38 @@ async function buildServer() {
     return prisma.match.update({ where: { id }, data: { score1, score2, status, winnerId } });
   });
 
+  // Endpoint to update match result and player stats
+  fastify.patch('/api/match/:id', async (request, reply) => {
+    const { id } = request.params;
+    const { score1, score2, winnerId } = request.body;
+    try {
+      const match = await prisma.match.update({
+        where: { id },
+        data: {
+          score1,
+          score2,
+          winnerId,
+          status: 'done'
+        }
+      });
+      // Update player stats
+      if (winnerId) {
+        await prisma.playerStats.updateMany({
+          where: { playerId: winnerId },
+          data: { wins: { increment: 1 } }
+        });
+        const loserId = match.p1Id === winnerId ? match.p2Id : match.p1Id;
+        await prisma.playerStats.updateMany({
+          where: { playerId: loserId },
+          data: { losses: { increment: 1 } }
+        });
+      }
+      reply.send(match);
+    } catch (error) {
+      reply.status(500).send({ error: 'Failed to update match' });
+    }
+  });
+
   // PlayerStats
   fastify.get('/api/playerStats', async () =>
     prisma.playerStats.findMany({ include: { player: true } })
@@ -73,6 +106,39 @@ async function buildServer() {
     sendLogToLogstash("log", "client-log", { body: req.body });
     fastify.log.info({ body: req.body }, 'client-log');
     return { ok: true };
+  });
+
+  const authenticate = async (request, reply) => {
+    try {
+      const token = request.cookies.token;
+      if (!token) {
+        throw new Error('Brak autoryzacji');
+      }
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      request.user = await prisma.player.findUnique({ where: { id: decoded.userId } });
+      if (!request.user) {
+        throw new Error('Użytkownik nie znaleziony');
+      }
+    } catch (err) {
+      reply.status(401).send({ error: 'Brak autoryzacji' });
+    }
+  };
+
+  // Auth
+  fastify.post('/api/auth/logout', (request, reply) => {
+    reply.clearCookie('token', { path: '/' }).status(200).send({ message: 'Wylogowano' });
+  });
+
+  // --- Nowy endpoint do usuwania konta ---
+  fastify.delete('/api/users/me', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const userId = request.user.id;
+      await prisma.player.delete({ where: { id: userId } });
+      reply.clearCookie('token', { path: '/' }).status(204).send();
+    } catch (error) {
+      fastify.log.error(error);
+      reply.status(500).send({ error: 'Nie udało się usunąć konta' });
+    }
   });
 
   return fastify;

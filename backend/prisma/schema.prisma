@@ -8,40 +8,42 @@ datasource db {
 }
 
 model Player {
-  id    String @id @default(uuid())
-  alias String @unique
-  stats PlayerStats?
-  queue QueueEntry?
-  matches1 Match[] @relation("Player1Matches")
-  matches2 Match[] @relation("Player2Matches")
+  id         String       @id @default(uuid())
+  alias      String       @unique
+  stats      PlayerStats?
+  queue      QueueEntry?
+  matches1   Match[]      @relation("Player1Matches")
+  matches2   Match[]      @relation("Player2Matches")
+  wonMatches Match[]      @relation("WonMatches")
 }
 
 model QueueEntry {
-  id        String  @id @default(uuid())
-  position  Int
-  player    Player  @relation(fields: [playerId], references: [id])
-  playerId  String  @unique
+  id       String @id @default(uuid())
+  position Int
+  player   Player @relation(fields: [playerId], references: [id])
+  playerId String @unique
 }
 
 model Match {
-  id        String   @id @default(uuid())
-  p1Id      String
-  p2Id      String
-  winnerId  String?
-  ts        DateTime @default(now())
-  score1    Int
-  score2    Int
-  status    String
-  p1        Player   @relation("Player1Matches", fields: [p1Id], references: [id])
-  p2        Player   @relation("Player2Matches", fields: [p2Id], references: [id])
+  id       String   @id @default(uuid())
+  p1       Player   @relation("Player1Matches", fields: [p1Id], references: [id], onDelete: Cascade)
+  p1Id     String
+  p2       Player   @relation("Player2Matches", fields: [p2Id], references: [id], onDelete: Cascade)
+  p2Id     String
+  winner   Player?  @relation("WonMatches", fields: [winnerId], references: [id], onDelete: NoAction)
+  winnerId String?
+  ts       DateTime @default(now())
+  score1   Int      @default(0)
+  score2   Int      @default(0)
+  status   String   @default("pending") // pending, playing, done
 }
 
 model PlayerStats {
-  id      String   @id @default(uuid())
-  player  Player   @relation(fields: [playerId], references: [id])
-  playerId String  @unique
-  wins    Int
-  losses  Int
-  streak  Int
-  rating  Int
+  id       String @id @default(uuid())
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId String @unique
+  wins     Int    @default(0)
+  losses   Int    @default(0)
+  streak   Int    @default(0)
+  rating   Int    @default(1200)
 }
