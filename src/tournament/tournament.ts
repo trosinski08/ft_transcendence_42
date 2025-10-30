@@ -189,14 +189,25 @@ export function initTournamentBindings() {
       if (Array.isArray(players) && players.some(p => p.alias.toLowerCase() === lower)) {
         return showError(t((document.documentElement.lang as any) || 'en', 'errors.alias.duplicate'));
       }
-      await addPlayer(alias);
-      await syncPlayersFromBackend();
+      try {
+        await addPlayer(alias);
+        await syncPlayersFromBackend();
+      } catch (e: any) {
+        if (e && e.status === 409) {
+          return showError(t((document.documentElement.lang as any) || 'en', 'errors.alias.duplicate'));
+        }
+        return showError((e && (e.body?.error || e.message)) || 'Request failed');
+      }
       // Find the playerId for the new alias
   const playersAfterSync = getPlayers();
   const player = Array.isArray(playersAfterSync) ? playersAfterSync.find(p => p.alias.toLowerCase() === lower) : undefined;
       if (player && !getQueue().some(q => q.playerId === player.id)) {
-        await addToQueue(player.id);
-        await syncQueueFromBackend();
+        try {
+          await addToQueue(player.id);
+          await syncQueueFromBackend();
+        } catch (e) {
+          // leave error silent in UI for now
+        }
       }
       updatePlayers();
       updateQueue();
@@ -215,10 +226,15 @@ export function initTournamentBindings() {
         if (next) next.textContent = t((document.documentElement.lang as any) || 'en', 'tour.needTwo');
         return;
       }
-      // Build schedule from queue (pair up players)
+      // Build schedule from queue (pair up players) with guards
+      const existing = (getTournamentSchedule()?.matches || []).map(m => new Set([m.player1Id, m.player2Id]));
       for (let i = 0; i < queue.length - 1; i += 2) {
         const p1 = queue[i].player;
         const p2 = queue[i + 1].player;
+        if (!p1 || !p2) { continue; }
+        if (p1.id === p2.id) { continue; }
+        const dup = existing.some(set => set.has(p1.id) && set.has(p2.id));
+        if (dup) { continue; }
         await addSchedule(p1.id, p2.id);
       }
       await syncScheduleFromBackend();

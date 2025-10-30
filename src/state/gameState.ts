@@ -173,6 +173,7 @@ export function resetTournament() {
   playerStats = [];
   matchHistory = [];
   currentMatchIndex = null;
+  tournamentSchedule = null;
 }
 
 export function getTournamentSchedule() {
