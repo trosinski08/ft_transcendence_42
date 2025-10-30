@@ -8,60 +8,64 @@ export interface RemoteTournament { players: RemotePlayer[]; schedule: any[]; cu
 
 const API_URL = '/api';
 
-export async function fetchPlayers() {
-  return fetch(`${API_URL}/players`).then(res => res.json());
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const res = await fetch(path, {
+    headers: { 'Accept': 'application/json', ...(options.headers || {}) },
+    ...options
+  });
+  const isJson = (res.headers.get('content-type') || '').includes('application/json');
+  const body = isJson ? await res.json().catch(() => undefined) : await res.text().catch(() => undefined);
+  if (!res.ok) {
+    const err: any = new Error(typeof body === 'string' ? body : (body?.error || `HTTP ${res.status}`));
+    err.status = res.status;
+    err.body = body;
+    throw err;
+  }
+  return body as T;
 }
+
+export type ApiPlayer = { id: string; alias: string };
+export async function fetchPlayers(): Promise<ApiPlayer[]> { return request<ApiPlayer[]>(`${API_URL}/players`); }
 export async function addPlayer(alias: string) {
-  return fetch(`${API_URL}/players`, {
+  return request(`${API_URL}/players`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ alias })
-  }).then(res => res.json());
+  });
 }
-export async function fetchQueue() {
-  return fetch(`${API_URL}/queue`).then(res => res.json());
-}
+export type ApiQueueEntry = { id: string; position: number; player: ApiPlayer; playerId: string };
+export async function fetchQueue(): Promise<ApiQueueEntry[]> { return request<ApiQueueEntry[]>(`${API_URL}/queue`); }
 export async function addQueueEntry(playerId: string) {
-  return fetch(`${API_URL}/queue`, {
+  return request(`${API_URL}/queue`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ playerId })
-  }).then(res => res.json());
+  });
 }
-export async function removeQueueEntry(playerId: string) {
-  return fetch(`${API_URL}/queue/${playerId}`, { method: 'DELETE' }).then(res => res.json());
-}
-export async function fetchSchedule() {
-  return fetch(`${API_URL}/schedule`).then(res => res.json());
-}
+export async function removeQueueEntry(playerId: string) { return request(`${API_URL}/queue/${playerId}`, { method: 'DELETE' }); }
+export async function fetchSchedule(): Promise<any[]> { return request<any[]>(`${API_URL}/schedule`); }
 export async function addScheduleEntry(p1Id: string, p2Id: string) {
-  return fetch(`${API_URL}/schedule`, {
+  return request(`${API_URL}/schedule`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ p1Id, p2Id })
-  }).then(res => res.json());
+  });
 }
 export async function updateScheduleEntry(id: string, data: any) {
-  return fetch(`${API_URL}/schedule/${id}`, {
+  return request(`${API_URL}/schedule/${id}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
-  }).then(res => res.json());
+  });
 }
-export async function fetchPlayerStats() {
-  return fetch(`${API_URL}/playerStats`).then(res => res.json());
-}
+export type ApiPlayerStats = { id: string; playerId: string; wins: number; losses: number; streak: number; rating: number };
+export async function fetchPlayerStats(): Promise<ApiPlayerStats[]> { return request<ApiPlayerStats[]>(`${API_URL}/playerStats`); }
 export async function upsertPlayerStats(stats: any) {
-  return fetch(`${API_URL}/playerStats`, {
+  return request(`${API_URL}/playerStats`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(stats)
-  }).then(res => res.json());
+  });
 }
 
 export async function fetchTournamentSchedule(): Promise<Match[]> {
   try {
-    const response = await fetch('/api/schedule');
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    return data as Match[];
+    return await request<Match[]>(`${API_URL}/schedule`);
   } catch (error) {
     console.error('Error fetching tournament schedule:', error);
     return [];
@@ -69,8 +73,8 @@ export async function fetchTournamentSchedule(): Promise<Match[]> {
 }
 
 export async function updateMatchStatus(matchId: string, status: string, winnerId: string, score1: number, score2: number, payload: MatchUpdatePayload): Promise<Match> {
-  return fetch(`${API_URL}/schedule/${matchId}`, {
+  return request(`${API_URL}/schedule/${matchId}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
-  }).then(res => res.json());
+  });
 }
