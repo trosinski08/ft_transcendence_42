@@ -15,7 +15,7 @@ import { initRouter, navigateTo } from './routing/router';
 import { keys, initInputHandlers } from './game/input';
 import * as physics from './game/physics/physics';
 import { drawMain } from './rendering/renderer';
-import { createRAFLoop } from './game/engine/gameLoop';
+import { createRAFLoop, handleTournamentMatchEnd } from './game/engine/gameLoop';
 import { initTournamentBindings, updatePlayers, updateQueue, renderSchedule, renderBracket } from './tournament/tournament';
 import { createFourController } from './game/fourPlayer';
 import * as effects from './game/effects';
@@ -115,7 +115,7 @@ let H = canvas?.height || 420;
   let WIN_SCORE = RULES.WIN_SCORE;
   let winner: string | null = null;
   let firstStartShown = true; // controls initial "press space" prompt
-
+  let mainLoop: any = null;
   let running = false;
   let p1Y = H / 2 - PDL.HEIGHT / 2;
   let p2Y = H / 2 - PDL.HEIGHT / 2;
@@ -286,7 +286,21 @@ let H = canvas?.height || 420;
           }
         }
       }
+    } try {
+    if (mainLoop) {
+      const res = handleTournamentMatchEnd(
+        { score1, score2 },
+        WIN_SCORE,
+        winner,
+        mainLoop
+      );
+      // If a tournament handler took control, skip drawing (navigation will occur)
+      if (res && res.handled) return;
+      // if not handled, we proceed to draw (existing behavior)
     }
+  } catch (e) {
+    console.error('Error handling tournament match end:', e);
+  }
   drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
   }
 
@@ -714,12 +728,12 @@ initRouter(() => currentLang);
 navigateTo(window.location.pathname || '/', true);
 
 // create RAF loops for main and 4-player (4p handled by module)
-const loopMain = createRAFLoop(step);
+mainLoop = createRAFLoop(step);
 const four = createFourController(600, 600, WIN_SCORE, PADDLE_SPEED);
 document.addEventListener('keydown', (e) => { four.handleKey(e as KeyboardEvent); });
 const loop4 = createRAFLoop(() => four.step());
 // start main loop
-loopMain.start();
+mainLoop.start();
 
 // AI settings removed (revert)
 

@@ -54,6 +54,13 @@ export function getCurrentMatch() {
   return tournamentSchedule.matches.find(m => m.id === currentMatchId) || null;
 }
 
+export function getPlayerAliasById(playerId: string): string {
+  const players = getPlayers();
+  if (!Array.isArray(players)) return 'TBD';
+  const player = players.find(p => p.id === playerId);
+  return player ? player.alias : 'TBD';
+}
+
 export async function syncPlayersFromBackend() {
   players = await fetchPlayers();
   updateTournamentView();
@@ -71,7 +78,7 @@ export async function syncScheduleFromBackend() {
       const playerMap = new Map(allPlayers.map(p => [p.id, p.alias]));
       const enrichedMatches = matchesFromBackend.map(match => ({
         ...match,
-        p1IdAlias: playerMap.get(match.p1Id) || 'Unknown',
+        player1Alias: playerMap.get(match.p1Id) || 'Unknown',
         player2Alias: playerMap.get(match.p2Id) || 'Unknown',
       }));
         tournamentSchedule = {

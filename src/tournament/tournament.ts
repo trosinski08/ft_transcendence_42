@@ -1,9 +1,11 @@
 import { t } from '../i18n/translations';
 import {
-  getPlayers, getQueue, getSchedule, getPlayerStats, getMatchHistory, getTournamentSchedule,
-  addPlayer, addToQueue, removeFromQueue, addSchedule, updateSchedule, upsertStats,
-  syncPlayersFromBackend, syncQueueFromBackend, syncScheduleFromBackend, syncPlayerStatsFromBackend,
-  loadState, resetTournament, currentMatchIndex, setCurrentMatchIndex, getCurrentMatch, setCurrentMatch
+  getPlayers, getQueue, getSchedule, getPlayerStats, getMatchHistory, 
+  getTournamentSchedule, addPlayer, addToQueue, removeFromQueue, 
+  addSchedule, updateSchedule, upsertStats, syncPlayersFromBackend,
+  syncQueueFromBackend, syncScheduleFromBackend, syncPlayerStatsFromBackend,
+  loadState, resetTournament, currentMatchIndex, setCurrentMatchIndex,
+  getCurrentMatch, setCurrentMatch, getPlayerAliasById
 } from '../state/gameState';
 import { navigateTo } from '../routing/router';
 import { validateAlias } from '../utils/validation';
@@ -51,7 +53,9 @@ export function renderSchedule() {
     const li = document.createElement('li');
     li.className = 'match-item';
     li.setAttribute('data-match-id', m.id);
-    const label = `${m.player1Alias || 'TBD'} ${t((document.documentElement.lang as any) || 'en', 'common.vs')} ${m.player2Alias || 'TBD'}`;
+    const p1Alias = m.player1Alias || getPlayerAliasById(m.p1Id);
+    const p2Alias = m.player2Alias || getPlayerAliasById(m.p2Id);
+    const label = `${p1Alias} ${t((document.documentElement.lang as any) || 'en', 'common.vs')} ${p2Alias}`;
     let statusChar = '';
     if (m.status === 'pending') statusChar = '⏳';
     else if (m.status === 'playing') statusChar = '▶';
@@ -86,7 +90,10 @@ export function renderBracket() {
   matches.forEach((m, idx) => {
     const div = document.createElement('div');
     div.style.marginBottom = '6px';
-  div.textContent = t((document.documentElement.lang as any) || 'en', 'tour.match', { n: idx + 1, p1: m.player1Alias, p2: m.player2Alias }) + (m.status === 'completed' ? ' → ' + (m.winnerId ? (m.p1Id === m.winnerId ? m.player1Alias : m.player2Alias) : '') : '');
+    const p1Alias = m.player1Alias || getPlayerAliasById(m.p1Id);
+    const p2Alias = m.player2Alias || getPlayerAliasById(m.p2Id);
+    const winnerAlias = m.winnerId ? getPlayerAliasById(m.winnerId) : '';
+    div.textContent = t((document.documentElement.lang as any) || 'en', 'tour.match', { n: idx + 1, p1: p1Alias, p2: p2Alias }) + (m.status === 'completed' ? ' → ' + (winnerAlias ? winnerAlias : '') : '');
     container.appendChild(div);
   });
 }
@@ -224,7 +231,7 @@ export function initTournamentBindings() {
         return;
       }
       // Build schedule from queue (pair up players) with guards
-      const existing = (getTournamentSchedule()?.matches || []).map(m => new Set([m.player1Id, m.player2Id]));
+      const existing = (getTournamentSchedule()?.matches || []).map(m => new Set([m.p1Id, m.p2Id]));
       for (let i = 0; i < queue.length - 1; i += 2) {
         const p1 = queue[i].player;
         const p2 = queue[i + 1].player;
@@ -275,6 +282,7 @@ export function updateTournamentView() {
   updatePlayers();
   updateQueue();
   renderSchedule();
+  renderBracket();
 
   const queue = getQueue();
   const schedule = getTournamentSchedule();
@@ -291,8 +299,8 @@ export function updateTournamentView() {
     nextMatchBtn.style.display = 'inline-block';
     const pendingMatch = schedule.matches.find(m => m.status === 'pending');
     if (pendingMatch) {
-      const p1Alias = pendingMatch.player1Alias || 'TBD';
-      const p2Alias = pendingMatch.player2Alias || 'TBD';
+      const p1Alias = pendingMatch.player1Alias || getPlayerAliasById(pendingMatch.p1Id);
+      const p2Alias = pendingMatch.player2Alias || getPlayerAliasById(pendingMatch.p2Id);
       nextMatchText.textContent = `${sanitize(p1Alias)} vs ${sanitize(p2Alias)}`;
       nextMatchBtn.disabled = false;
     } else {
