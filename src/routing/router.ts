@@ -54,6 +54,14 @@ export function showRoute(path: string) {
       break;
     case '/game':
       if (pages.game) pages.game.classList.add('visible');
+      // When entering the game view, sync UI with match context and ensure a clean start
+      try {
+        (window as any).updateGameUIForMatchContext && (window as any).updateGameUIForMatchContext();
+        (window as any).resetMatch && (window as any).resetMatch();
+        (window as any).game && (window as any).game.ensureLoop && (window as any).game.ensureLoop();
+      } catch (e) {
+        console.warn('[nav] Failed to prepare game view:', e);
+      }
       break;
     case '/multiplayer':
       if (pages.multi) { pages.multi.classList.add('visible'); try { (window as any).startFourPlayerIfReady && (window as any).startFourPlayerIfReady(); } catch {} }

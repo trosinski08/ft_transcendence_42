@@ -1,7 +1,7 @@
 import {
   fetchPlayers, addPlayer as apiAddPlayer,
   fetchQueue, addQueueEntry, removeQueueEntry,
-  fetchSchedule, addScheduleEntry, updateScheduleEntry,
+  fetchSchedule, addScheduleEntry, updateScheduleEntry, deleteAllSchedule,
   fetchPlayerStats, upsertPlayerStats, updateMatchStatus,
   fetchTournamentSchedule
 } from '../apiClient';
@@ -216,6 +216,24 @@ export function resetTournament() {
   playerStats = [];
   matchHistory = [];
   currentMatchIndex = null;
+  tournamentSchedule = null;
+}
+
+export async function resetTournamentWithBackend() {
+  // Clear all matches from backend
+  try {
+    await deleteAllSchedule();
+  } catch (err) {
+    console.error('[gameState] Failed to delete schedule from backend:', err);
+  }
+  // Clear local state
+  players = [];
+  queue = [];
+  schedule = [];
+  playerStats = [];
+  matchHistory = [];
+  currentMatchIndex = null;
+  currentMatchId = null;
   tournamentSchedule = null;
 }
 

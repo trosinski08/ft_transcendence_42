@@ -2,7 +2,6 @@ import './styles.css';
 import { applyTranslations, DEFAULT_LANG, isLang, t, type Lang } from './i18n/translations';
 import { ARENA, PADDLE as PDL, BALL as BL, RULES } from './game/constants';
 import { DIFFICULTY_PRESETS } from './ai/difficultyPresets';
-import type { AIDifficulty } from './ai/aiTypes';
 import { nextAIPaddleY } from './ai/simpleAI';
 import {
   getPlayers, getQueue, getSchedule, getPlayerStats, getMatchHistory,
@@ -16,12 +15,13 @@ import { keys, initInputHandlers } from './game/input';
 import * as physics from './game/physics/physics';
 import { drawMain } from './rendering/renderer';
 import { createRAFLoop, handleTournamentMatchEnd } from './game/engine/gameLoop';
+import { getCurrentMatch } from './state/gameState';
 import { initTournamentBindings, updatePlayers, updateQueue, renderSchedule, renderBracket } from './tournament/tournament';
 import { createFourController } from './game/fourPlayer';
 import * as effects from './game/effects';
 import * as aiControls from './game/aiControls';
 import * as settingsUi from './game/settingsUi';
-import { run } from 'node:test';
+// Note: avoid importing Node-only modules in browser bundle
 
 // --- ELK Logging ---
 async function sendLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, metadata?: Record<string, any>) {
@@ -117,6 +117,9 @@ let H = canvas?.height || 420;
   let firstStartShown = true; // controls initial "press space" prompt
   let mainLoop: any = null;
   let running = false;
+  // --- NEW: game mode ---
+  // 'local' = normal play, 'tournament' = playing a scheduled tournament match
+  let gameMode: 'local' | 'tournament' = 'local';
   let p1Y = H / 2 - PDL.HEIGHT / 2;
   let p2Y = H / 2 - PDL.HEIGHT / 2;
   // Base paddle dimensions and per-side derived heights
@@ -156,10 +159,17 @@ let H = canvas?.height || 420;
   }, (d) => { /* difficulty changed, no-op */ });
 
 
-  function resetMatch() {
-    score1 = 0; score2 = 0; winner = null; updateScoreUI();
-    ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS);
-    firstStartShown = true;
+  export function resetMatch() {
+  score1 = 0; score2 = 0; winner = null; updateScoreUI();
+  ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS);
+  // Stop the ball until user presses SPACE
+  ball.vx = 0; ball.vy = 0;
+  firstStartShown = true;
+  running = false;
+  // Center paddles
+  p1Y = H / 2 - p1H / 2;
+  p2Y = H / 2 - p2H / 2;
+  updateGameUIForMatchContext();
   }
 
   function updateScoreUI() {
@@ -169,7 +179,49 @@ let H = canvas?.height || 420;
     if (s2) s2.textContent = String(score2);
     const next = document.getElementById('next-match');
   if (winner && next) next.textContent = `${winner}`;
+      // Aktualizuj aliasy po zmianie wyniku
+      // updateGameUIForMatchContext(); // Usunięto z tego miejsca, aby uniknąć nadmiarowych wywołań
   }
+// --- Tournament/game context UI updater ---
+// --- EKSPORTUJ TĘ FUNKCJĘ ---
+export function updateGameUIForMatchContext() {
+  // Alias labels above scores
+  const p1Label = document.getElementById('p1-alias-label');
+  const p2Label = document.getElementById('p2-alias-label');
+  // Alias labels under controls
+  const p1Alias = document.getElementById('p1-alias');
+  const p2Alias = document.getElementById('p2-alias');
+  // AI controls panel (class-based container)
+  const aiPanel = document.querySelector('.ai-controls') as HTMLElement | null;
+  const aiToggle = document.getElementById('ai-toggle') as HTMLInputElement | null;
+  const aiSelect = document.getElementById('ai-difficulty') as HTMLSelectElement | null;
+
+  const match = getCurrentMatch();
+  if (match) {
+    // Tournament match context
+    gameMode = 'tournament';
+    const aliases = mapPlayerAliases([match.p1Id, match.p2Id]);
+    if (p1Label) p1Label.textContent = aliases[0];
+    if (p2Label) p2Label.textContent = aliases[1];
+    if (p1Alias) p1Alias.textContent = aliases[0];
+    if (p2Alias) p2Alias.textContent = aliases[1];
+  if (aiPanel) aiPanel.style.display = 'none';
+  if (aiToggle) { aiToggle.checked = false; aiToggle.disabled = true; }
+  if (aiSelect) { aiSelect.disabled = true; }
+    // Ensure AI is disabled in tournament mode
+    aiControls.setAiEnabled(false);
+  } else {
+    // Standard game context
+    gameMode = 'local';
+    if (p1Label) p1Label.textContent = t(currentLang, 'hdr.player1');
+    if (p2Label) p2Label.textContent = t(currentLang, 'hdr.player2');
+    if (p1Alias) p1Alias.textContent = t(currentLang, 'game.player1');
+    if (p2Alias) p2Alias.textContent = t(currentLang, 'game.player2');
+  if (aiPanel) aiPanel.style.display = 'block';
+  if (aiToggle) { aiToggle.disabled = false; }
+  if (aiSelect) { aiSelect.disabled = false; }
+  }
+}
 
   function updatePlayButtonUI() {
     const btn = document.getElementById('play-toggle') as HTMLButtonElement | null;
@@ -201,7 +253,7 @@ let H = canvas?.height || 420;
     }
     updatePlayButtonUI();
     try {
-      drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
+      drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail, gameMode });
     } catch (e) {
     }
   }
@@ -236,10 +288,13 @@ let H = canvas?.height || 420;
   // drawing delegated to renderer
 
   function step() {
-    if (running && !winner) {
-      // delegate movement/collision to physics
+    if (!running) return;
+    if (gameMode === 'local') {
+      // LOCAL: standard game loop
+      // ...existing physics, scoring, powerup logic...
+      // (skopiuj logikę z powyżej, bez try/catch i obsługi turnieju)
       const physicsParams = {
-         W, H,
+        W, H,
         ARENA_LEFT_X: ARENA.LEFT_X,
         ARENA_RIGHT_X_OFFSET: ARENA.RIGHT_X_OFFSET,
         ARENA_PADDING_TOP: ARENA.PADDING_TOP,
@@ -253,55 +308,74 @@ let H = canvas?.height || 420;
       if (result.lastHit) lastHit = result.lastHit;
       handlePowerUps();
       if (result.scored) {
-        // Ball reset: center, zero velocity, direction for next launch
         ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS, (result.scored === 'left' ? 1 : -1));
         ball.vx = 0;
         ball.vy = 0;
- 
         running = false;
         firstStartShown = true;
         if (result.scored === 'left') {
           score2 += 1; updateScoreUI();
-          afterScoreUpdateObserver();
-          if (score2 >= WIN_SCORE) {
-            const match = currentMatchIndex != null ? getSchedule()[currentMatchIndex] : null;
-            if (match) {
-              const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
-              winner = aliases[1];
-            } else {
-              winner = t(currentLang, 'game.player2');
-            }
-          }
         } else if (result.scored === 'right') {
           score1 += 1; updateScoreUI();
-          afterScoreUpdateObserver();
-          if (score1 >= WIN_SCORE) {
-            const match = currentMatchIndex != null ? getSchedule()[currentMatchIndex] : null;
-            if (match) {
-              const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
-              winner = aliases[0];
-            } else {
-              winner = t(currentLang, 'game.player1');
-            }
-          }
+        }
+        // Check local win condition
+        if (!winner && (score1 >= WIN_SCORE || score2 >= WIN_SCORE)) {
+          winner = score1 >= WIN_SCORE ? t(currentLang, 'game.player1') : t(currentLang, 'game.player2');
         }
       }
-    } try {
-    if (mainLoop) {
-      const res = handleTournamentMatchEnd(
-        { score1, score2 },
-        WIN_SCORE,
-        winner,
-        mainLoop
-      );
-      // If a tournament handler took control, skip drawing (navigation will occur)
-      if (res && res.handled) return;
-      // if not handled, we proceed to draw (existing behavior)
+      drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail, gameMode });
+    } else {
+      // TOURNAMENT: obsługa meczu turniejowego
+      const physicsParams = {
+        W, H,
+        ARENA_LEFT_X: ARENA.LEFT_X,
+        ARENA_RIGHT_X_OFFSET: ARENA.RIGHT_X_OFFSET,
+        ARENA_PADDING_TOP: ARENA.PADDING_TOP,
+        ARENA_PADDING_BOTTOM: ARENA.PADDING_BOTTOM,
+        paddleW,
+        BALL_SPEED_INC_FACTOR,
+        BALL_MAX_SPEED
+      };
+      const result = physics.updateBall(ball, p1Y, p1H, p2Y, p2H, physicsParams);
+      ball = result.ball;
+      if (result.lastHit) lastHit = result.lastHit;
+      handlePowerUps();
+      if (result.scored) {
+        ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS, (result.scored === 'left' ? 1 : -1));
+        ball.vx = 0;
+        ball.vy = 0;
+        running = false;
+        firstStartShown = true;
+        if (result.scored === 'left') {
+          score2 += 1; updateScoreUI();
+        } else if (result.scored === 'right') {
+          score1 += 1; updateScoreUI();
+        }
+      }
+      // Tournament match end logic
+      if (mainLoop) {
+        const res = handleTournamentMatchEnd(
+          { score1, score2 },
+          WIN_SCORE,
+          winner,
+          mainLoop
+        );
+        if (res && res.winner && !winner) {
+          const match = getCurrentMatch();
+          if (match) {
+            const aliases = mapPlayerAliases([match.p1Id, match.p2Id]);
+            winner = res.winner === 1 ? aliases[0] : aliases[1];
+          } else {
+            winner = res.winner === 1 ? t(currentLang, 'game.player1') : t(currentLang, 'game.player2');
+          }
+        }
+        if (res && res.handled) {
+          console.log('[Game Step] Tournament match handled, navigating back to tournament view.', res);
+          return;
+        }
+      }
+      drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail, gameMode });
     }
-  } catch (e) {
-    console.error('Error handling tournament match end:', e);
-  }
-  drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
   }
 
   // Initialize global input handlers
@@ -314,9 +388,12 @@ let H = canvas?.height || 420;
       ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS);
       ball.vx = 0;
       ball.vy = 0;
+      // center paddles
+      p1Y = H / 2 - p1H / 2;
+      p2Y = H / 2 - p2H / 2;
       running = false;
       firstStartShown = true;
-      drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
+  drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail, gameMode });
     },
     () => { aiControls.setAiEnabled(!aiControls.getAiEnabled()); }
   );
@@ -325,7 +402,8 @@ let H = canvas?.height || 420;
     if (running) {
       if (keys.has('KeyW')) p1Y -= PADDLE_SPEED;
       if (keys.has('KeyS')) p1Y += PADDLE_SPEED;
-        if (aiControls.getAiEnabled()) {
+        // In tournament mode, AI must be off regardless of toggle
+        if (gameMode === 'local' && aiControls.getAiEnabled()) {
           const cfg = DIFFICULTY_PRESETS[aiControls.getAiDifficulty()];
           const nextY = nextAIPaddleY(
             { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, r: ball.r },
@@ -347,12 +425,29 @@ let H = canvas?.height || 420;
   }
 
   updateScoreUI();
-  drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
+  drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail, gameMode });
   handleInput();
   // start main RAF loop via createRAFLoop below
 
-  (window as any).game = { start: () => setRunning(true), stop: () => setRunning(false) };
-
+  // Expose a minimal API for router/tournament to interact with game view
+(window as any).game = {
+  start: () => { setRunning(true); updateGameUIForMatchContext(); },
+  stop: () => { setRunning(false); updateGameUIForMatchContext(); },
+  ensureLoop: () => { try { if (mainLoop && !mainLoop.isRunning()) mainLoop.start(); } catch {} }
+};
+(window as any).resetMatch = () => {
+  // Reset scores, ball, and paddle positions to a clean state
+  score1 = 0; score2 = 0; winner = null; updateScoreUI();
+  ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS);
+  ball.vx = 0; ball.vy = 0;
+  p1Y = H / 2 - p1H / 2;
+  p2Y = H / 2 - p2H / 2;
+  running = false; firstStartShown = true;
+  updateGameUIForMatchContext();
+  drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail, gameMode });
+};
+(window as any).updateGameUIForMatchContext = updateGameUIForMatchContext;
+(window as any).navigateTo = navigateTo;
   // AI UI wiring handled by src/game/aiControls
 
 // --- Customization: rules & theme ---
@@ -632,27 +727,27 @@ function applyPowerUp(type: PowerUpType, collector: 1|2) {
     }
     case 'POINT': {
       if (collector === 1) {
-        score1 += 1; updateScoreUI(); afterScoreUpdateObserver();
-        if (score1 >= WIN_SCORE) {
-          const match = currentMatchIndex != null ? getSchedule()[currentMatchIndex] : null;
-          if (match) {
-            const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
-            winner = aliases[0];
-          } else {
-            winner = t(currentLang, 'game.player1');
-          }
-        }
+        score1 += 1; updateScoreUI(); // Removed afterScoreUpdateObserver();
+        // if (score1 >= WIN_SCORE) {
+        //   const match = currentMatchIndex != null ? getSchedule()[currentMatchIndex] : null;
+        //   if (match) {
+        //     const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
+        //     winner = aliases[0];
+        //   } else {
+        //     winner = t(currentLang, 'game.player1');
+        //   }
+        // }
       } else {
-        score2 += 1; updateScoreUI(); afterScoreUpdateObserver();
-        if (score2 >= WIN_SCORE) {
-          const match = currentMatchIndex != null ? getSchedule()[currentMatchIndex] : null;
-          if (match) {
-            const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
-            winner = aliases[1];
-          } else {
-            winner = t(currentLang, 'game.player2');
-          }
-        }
+        score2 += 1; updateScoreUI(); // Removed afterScoreUpdateObserver();
+        // if (score2 >= WIN_SCORE) {
+        //   const match = currentMatchIndex != null ? getSchedule()[currentMatchIndex] : null;
+        //   if (match) {
+        //     const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
+        //     winner = aliases[1];
+        //   } else {
+        //     winner = t(currentLang, 'game.player2');
+        //   }
+        // }
       }
       showPuMsg('game.powerup.point');
       break;
@@ -682,46 +777,25 @@ function handlePowerUps() {
   }
 }
 
-// 4-player mode moved to src/game/fourPlayer
 
-// Router functions provided by `src/routing/router`
-
-// load/save state moved to `src/state/gameState`
-
-
-// Hook into winner assignment (poll each frame)
-async function afterScoreUpdateObserver() {
-   const schedule = getTournamentSchedule();
-  if (winner && currentMatchIndex != null && schedule && schedule.matches[currentMatchIndex]) {
-    const match = schedule.matches[currentMatchIndex];
-    if (match.status !== 'completed') {
-      let winnerId: string | undefined;
-      if (winner === match.player1Alias) {
-        winnerId = match.p1Id;
-      } else if (winner === match.player2Alias) {
-        winnerId = match.p2Id;
-      } else {
-        winnerId = winner; // Fallback, rozważ bardziej solidną logikę dla AI
-      }
-
-      await updateSchedule(match.id, 'completed', winnerId, score1, score2);
-      await syncScheduleFromBackend();
-    }
-  }
-}
-
-
-// AI controls removed (revert)
-
-// tournament UI and bindings moved to src/tournament/tournament.ts
-
-// Initial UI state load + route hydration
-// initialize and hydrate tournament UI/state
 loadState().finally(() => {
   updatePlayers();
   updateQueue();
-  // schedule build and UI handled by tournament module
   initTournamentBindings();
+  // Ustal tryb gry przed resetem
+  try {
+    const match = getCurrentMatch();
+    if (match) {
+      gameMode = 'tournament';
+      console.log('[Game] Initializing in TOURNAMENT mode for match:', match);
+    } else {
+      gameMode = 'local';
+      console.log('[Game] Initializing in LOCAL mode.');
+    }
+  } catch (e) {
+    gameMode = 'local';
+  }
+  resetMatch();
 });
 // Hydrate initial path (supports deep-link reload); fallback handled inside showRoute
 initRouter(() => currentLang);
@@ -773,5 +847,5 @@ syncCanvasSize();
 window.addEventListener('resize', () => {
   syncCanvasSize();
   // Optional: redraw game state on resize
-  drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
+  drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail, gameMode });
 });

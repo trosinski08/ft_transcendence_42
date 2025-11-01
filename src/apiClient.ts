@@ -48,6 +48,9 @@ export async function addScheduleEntry(p1Id: string, p2Id: string) {
     body: JSON.stringify({ p1Id, p2Id })
   });
 }
+export async function deleteAllSchedule() {
+  return request(`${API_URL}/schedule`, { method: 'DELETE' });
+}
 export async function updateScheduleEntry(id: string, data: any) {
   return request(`${API_URL}/schedule/${id}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },

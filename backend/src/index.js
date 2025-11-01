@@ -55,6 +55,11 @@ async function buildServer() {
     const { score1, score2, status, winnerId } = req.body;
     return prisma.match.update({ where: { id }, data: { score1, score2, status, winnerId } });
   });
+  // Delete all matches (for resetting tournament)
+  fastify.delete('/api/schedule', async (req, reply) => {
+    await prisma.match.deleteMany({});
+    return { ok: true };
+  });
 
   // Endpoint to update match result and player stats
   fastify.patch('/api/match/:id', async (request, reply) => {
