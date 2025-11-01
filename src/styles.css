@@ -287,6 +287,17 @@ input:focus {
 .bar > span { position:absolute; left:8px; top:2px; font-size:12px; color:#9fdc9f; }
 .bar > i { display:block; height:100%; background:#00ff6a; opacity:0.5; }
 
+.settings-account { margin-top:24px; padding-top:18px; border-top:1px solid rgba(0,255,106,0.15); display:flex; flex-direction:column; gap:12px; }
+.settings-actions { display:flex; flex-wrap:wrap; gap:12px; }
+.settings-actions button { min-width:140px; }
+.settings-warning { font-size:0.85rem; color:#ffc3a1; }
+.settings-feedback { min-height:20px; font-size:0.9rem; color:#9fdc9f; transition:opacity 0.2s ease-out; }
+.settings-feedback[data-state="success"] { color:#9fffb7; }
+.settings-feedback[data-state="error"] { color:#ff8a8a; }
+.settings-feedback[data-state="info"] { color:#9fdc9f; }
+button.danger { border:1px solid rgba(255,92,92,0.65); color:#ffb2b2; background:rgba(255,92,92,0.12); }
+button.danger:hover { box-shadow:0 0 15px rgba(255,92,92,0.3); }
+
 /* External Google Fonts import removed to satisfy CSP */
 :root{
 	--bg: #04120a;

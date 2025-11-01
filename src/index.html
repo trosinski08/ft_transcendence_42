@@ -96,6 +96,16 @@
           </label>
         </div>
         <p class="settings-hint" id="settings-hint" data-i18n="settings.hint">Changes save automatically.</p>
+        <section class="settings-account" aria-labelledby="settings-account-title">
+          <h3 id="settings-account-title" data-i18n="settings.accountTitle">Account &amp; privacy</h3>
+          <p data-i18n="settings.accountInfo">Manage your session or request account removal.</p>
+          <div class="settings-actions">
+            <button id="settings-logout" type="button" data-i18n="settings.logout">Log out</button>
+            <button id="settings-delete-account" type="button" class="danger" data-i18n="settings.delete">Delete account</button>
+          </div>
+          <p class="settings-warning" data-i18n="settings.deleteWarning">Deleting the account removes your data permanently.</p>
+          <p id="gdpr-feedback" class="settings-feedback" role="status" aria-live="polite"></p>
+        </section>
       </section>
 
   <section id="multi-page" class="page" aria-labelledby="multi-title">

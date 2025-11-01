@@ -9,9 +9,11 @@ export interface RemoteTournament { players: RemotePlayer[]; schedule: any[]; cu
 const API_URL = '/api';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const { headers, ...rest } = options;
   const res = await fetch(path, {
-    headers: { 'Accept': 'application/json', ...(options.headers || {}) },
-    ...options
+    credentials: 'include',
+    headers: { 'Accept': 'application/json', ...(headers || {}) },
+    ...rest
   });
   const isJson = (res.headers.get('content-type') || '').includes('application/json');
   const body = isJson ? await res.json().catch(() => undefined) : await res.text().catch(() => undefined);
@@ -63,6 +65,18 @@ export async function upsertPlayerStats(stats: any) {
   return request(`${API_URL}/playerStats`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(stats)
+  });
+}
+
+export async function logout(): Promise<{ message: string }> {
+  return request<{ message: string }>(`${API_URL}/auth/logout`, {
+    method: 'POST'
+  });
+}
+
+export async function deleteCurrentUser(): Promise<void> {
+  await request(`${API_URL}/users/me`, {
+    method: 'DELETE'
   });
 }
 

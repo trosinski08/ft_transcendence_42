@@ -1,8 +1,9 @@
-import { t } from '../i18n/translations';
+import { DEFAULT_LANG, isLang, t } from '../i18n/translations';
+import { fetchSchedule } from '../apiClient';
 import {
-  getPlayers, getQueue, getSchedule, getPlayerStats, getMatchHistory, 
+  getPlayers, getQueue, getPlayerStats,
   getTournamentSchedule, addPlayer, addToQueue, removeFromQueue, 
-  addSchedule, updateSchedule, upsertStats, syncPlayersFromBackend,
+  addSchedule, updateSchedule, syncPlayersFromBackend,
   syncQueueFromBackend, syncScheduleFromBackend, syncPlayerStatsFromBackend,
   loadState, resetTournament, resetTournamentWithBackend, currentMatchIndex, setCurrentMatchIndex,
   getCurrentMatch, setCurrentMatch, getPlayerAliasById
@@ -98,44 +99,94 @@ export function renderBracket() {
   });
 }
 
-export function renderStatsPage() {
+export async function renderStatsPage() {
   const top = document.getElementById('stats-top');
   const recent = document.getElementById('stats-recent');
   if (!top || !recent) return;
   top.innerHTML = '';
   recent.innerHTML = '';
-  const statsArr = getPlayerStats();
-  if (!statsArr.length) {
-    const p = document.createElement('p');
-    p.textContent = t((document.documentElement.lang as any) || 'en', 'stats.noData');
-    top.appendChild(p);
-  } else {
-    // Join with player alias for display
-    const players = getPlayers();
-    const statsWithAlias = statsArr.map(s => ({
-      ...s,
-      alias: (Array.isArray(players) ? (players.find(p => p.id === s.playerId) || { alias: '??' }).alias : '??')
-    }));
-    const sorted = statsWithAlias.sort((a, b) => b.rating - a.rating).slice(0, 10);
-    const maxRating = Math.max(...sorted.map(s => s.rating), 1200);
-    sorted.forEach(s => {
-      const row = document.createElement('div'); row.className = 'bar';
-      const fill = document.createElement('i');
-      const pct = Math.max(0.1, s.rating / maxRating);
-      fill.style.width = (pct * 100).toFixed(1) + '%';
-      const label = document.createElement('span');
-      label.textContent = `${s.alias} • ${t((document.documentElement.lang as any) || 'en', 'stats.rating')}: ${s.rating} • ${t((document.documentElement.lang as any) || 'en', 'stats.wins')}: ${s.wins} • ${t((document.documentElement.lang as any) || 'en', 'stats.losses')}: ${s.losses}`;
-      row.appendChild(fill); row.appendChild(label); top.appendChild(row);
+  const langAttr = (document.documentElement.lang || '').toLowerCase();
+  const lang = isLang(langAttr) ? langAttr : DEFAULT_LANG;
+
+  const loadingTop = document.createElement('p');
+  loadingTop.textContent = t(lang, 'stats.loading');
+  top.appendChild(loadingTop);
+  const loadingRecent = document.createElement('li');
+  loadingRecent.textContent = t(lang, 'stats.loading');
+  recent.appendChild(loadingRecent);
+
+  try {
+    const [, , schedule] = await Promise.all([
+      syncPlayersFromBackend(),
+      syncPlayerStatsFromBackend(),
+      fetchSchedule()
+    ]);
+
+    const statsArr = getPlayerStats();
+    top.innerHTML = '';
+    if (!statsArr.length) {
+      const p = document.createElement('p');
+      p.textContent = t(lang, 'stats.noData');
+      top.appendChild(p);
+    } else {
+      const players = getPlayers();
+      const statsWithAlias = statsArr.map((s) => ({
+        ...s,
+        alias: (Array.isArray(players) ? (players.find((p) => p.id === s.playerId) || { alias: '??' }).alias : '??')
+      }));
+      const sorted = statsWithAlias.sort((a, b) => b.rating - a.rating).slice(0, 10);
+      const maxRating = Math.max(...sorted.map((s) => s.rating), 1200);
+      sorted.forEach((s) => {
+        const row = document.createElement('div');
+        row.className = 'bar';
+        const fill = document.createElement('i');
+        const pct = Math.max(0.1, s.rating / maxRating);
+        fill.style.width = (pct * 100).toFixed(1) + '%';
+        const label = document.createElement('span');
+        label.textContent = `${s.alias} • ${t(lang, 'stats.rating')}: ${s.rating} • ${t(lang, 'stats.wins')}: ${s.wins} • ${t(lang, 'stats.losses')}: ${s.losses}`;
+        row.appendChild(fill);
+        row.appendChild(label);
+        top.appendChild(row);
+      });
+    }
+
+    recent.innerHTML = '';
+    const matches = Array.isArray(schedule) ? schedule : [];
+    const completed = matches.filter((m) => {
+      const status = (m?.status || '').toLowerCase();
+      return status === 'completed' || status === 'done';
     });
+    const sortedMatches = completed
+      .sort((a, b) => new Date(b.ts || 0).getTime() - new Date(a.ts || 0).getTime())
+      .slice(0, 10);
+
+    if (!sortedMatches.length) {
+      const li = document.createElement('li');
+      li.textContent = t(lang, 'stats.noMatches');
+      recent.appendChild(li);
+    } else {
+      sortedMatches.forEach((m) => {
+        const li = document.createElement('li');
+        const date = m.ts ? new Date(m.ts).toLocaleString() : '';
+        const p1Alias = m.p1?.alias || getPlayerAliasById(m.p1Id);
+        const p2Alias = m.p2?.alias || getPlayerAliasById(m.p2Id);
+        const winnerAlias = m.winnerId ? (m.winnerId === m.p1Id ? p1Alias : p2Alias) : '';
+        const winnerPart = winnerAlias ? ` → ${t(lang, 'tour.winner')}: ${winnerAlias}` : '';
+        li.textContent = `${date}: ${p1Alias} ${m.score1} - ${m.score2} ${p2Alias}${winnerPart}`;
+        recent.appendChild(li);
+      });
+    }
+  } catch (error) {
+    console.error('[Stats] Failed to load stats dashboard', error);
+    top.innerHTML = '';
+    recent.innerHTML = '';
+    const errMsg = document.createElement('p');
+    errMsg.textContent = t(lang, 'stats.error');
+    top.appendChild(errMsg);
+    const errRecent = document.createElement('li');
+    errRecent.textContent = t(lang, 'stats.error');
+    recent.appendChild(errRecent);
   }
-  const recentTen = [...getMatchHistory()].sort((a,b)=>b.ts-a.ts).slice(0, 10);
-  recentTen.forEach(m => {
-    const li = document.createElement('li');
-    const date = new Date(m.ts).toLocaleString();
-    const winnerAlias = m.winnerId ? (m.p1.id === m.winnerId ? m.p1.alias : m.p2.alias) : '';
-    li.textContent = `${date}: ${m.p1.alias} ${m.score1} - ${m.score2} ${m.p2.alias} → ${t((document.documentElement.lang as any) || 'en', 'tour.winner')}: ${winnerAlias}`;
-    recent.appendChild(li);
-  });
 }
 
 
@@ -328,5 +379,9 @@ export function updateTournamentView() {
       nextMatchText.textContent = t((document.documentElement.lang as any) || 'en', 'tour.needTwo');
     }
   }
+}
+
+if (typeof window !== 'undefined') {
+  (window as any).renderStatsPage = () => { renderStatsPage(); };
 }
 

@@ -21,6 +21,7 @@ import { createFourController } from './game/fourPlayer';
 import * as effects from './game/effects';
 import * as aiControls from './game/aiControls';
 import * as settingsUi from './game/settingsUi';
+import { initAccountControls } from './ui/accountControls';
 // Note: avoid importing Node-only modules in browser bundle
 
 // --- ELK Logging ---
@@ -93,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   setLanguage(currentLang);
+  initAccountControls(() => currentLang);
 });
 
 const canvas = document.getElementById('game') as HTMLCanvasElement | null;
