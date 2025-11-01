@@ -16,6 +16,36 @@ function sanitize(input: string): string {
   return input.replace(/[\u0000-\u001F<>]/g, '').replace(/\s+/g, ' ').trim();
 }
 
+function generateBracket(playerIds: number[]): { p1Id: number, p2Id: number | null, round: number }[][] {
+  let rounds: { p1Id: number, p2Id: number | null, round: number }[][] = [];
+  let current = [...playerIds];
+  let roundNumber = 1;
+  
+  while (current.length > 1) {
+    let round: { p1Id: number, p2Id: number | null, round: number }[] = [];
+    let nextRound: number[] = [];
+    
+    for (let i = 0; i < current.length; i += 2) {
+      if (i + 1 < current.length) {
+        // Para graczy
+        round.push({ p1Id: current[i], p2Id: current[i + 1], round: roundNumber });
+      } else {
+        // Wolny los - gracz automatycznie przechodzi do kolejnej rundy
+        round.push({ p1Id: current[i], p2Id: null, round: roundNumber });
+        nextRound.push(current[i]);
+      }
+    }
+    rounds.push(round);
+    
+    // Przygotuj następną rundę (tylko gracze z meczami, zwycięzcy zostaną dodani później)
+    current = nextRound;
+    roundNumber++;
+  }
+  
+  return rounds;
+}
+
+
 export function updatePlayers() {
   const ul = document.getElementById('players-list');
   if (!ul) return;
@@ -273,7 +303,6 @@ export function initTournamentBindings() {
       }
       updatePlayers();
       updateQueue();
-      // You should implement schedule creation via backend here
       inputEl.value = '';
     });
   }
@@ -288,29 +317,22 @@ export function initTournamentBindings() {
         if (next) next.textContent = t((document.documentElement.lang as any) || 'en', 'tour.needTwo');
         return;
       }
-      // Build schedule from queue (pair up players) with guards
-      const existing = (getTournamentSchedule()?.matches || []).map(m => new Set([m.p1Id, m.p2Id]));
-      for (let i = 0; i < queue.length - 1; i += 2) {
-        const p1 = queue[i].player;
-        const p2 = queue[i + 1].player;
-        if (!p1 || !p2) { continue; }
-        if (p1.id === p2.id) { continue; }
-        const dup = existing.some(set => set.has(p1.id) && set.has(p2.id));
-        if (dup) { continue; }
-        await addSchedule(p1.id, p2.id);
+      const playerIds = queue.map(q => Number(q.player.id));
+      const bracket = generateBracket(playerIds);
+      for (const match of bracket[0]) {
+        if (match.p2Id !== null) {
+          await addSchedule(String(match.p1Id), String(match.p2Id));
+        } else {
+          const scheduleId = await addSchedule(String(match.p1Id), String(match.p1Id));
+        }
       }
+      
       await syncScheduleFromBackend();
-      const schedule = getTournamentSchedule();
-      const matches = schedule && Array.isArray(schedule.matches) ? schedule.matches : [];
-      if (!matches.length) {
-        const next = document.getElementById('next-match');
-        if (next) next.textContent = t((document.documentElement.lang as any) || 'en', 'tour.needTwo');
-        return;
-      }
       startNextScheduledMatch();
       updateQueue();
     });
   }
+
 
   const newTourneyBtn = document.getElementById('new-tournament');
   if (newTourneyBtn) {
@@ -332,7 +354,7 @@ export function initTournamentBindings() {
 
 export function initTournamentPage() {
   initTournamentBindings();
-  updateTournamentView(); // Wywołaj przy pierwszym załadowaniu
+  updateTournamentView();
 }
 
 export function updateTournamentView() {
@@ -349,10 +371,7 @@ export function updateTournamentView() {
   const nextMatchText = document.getElementById('next-match');
 
   if (!startBtn || !nextMatchBtn || !nextMatchText) return;
-
-  // Logika sterująca widocznością i stanem przycisków
   if (schedule && schedule.matches && schedule.matches.length > 0) {
-    // Jest już harmonogram, więc ukryj przycisk Start i pokaż Next Match
     startBtn.style.display = 'none';
     nextMatchBtn.style.display = 'inline-block';
     const playing = schedule.matches.find(m => m.status === 'playing');
@@ -368,7 +387,6 @@ export function updateTournamentView() {
       nextMatchBtn.disabled = true;
     }
   } else {
-    // Nie ma harmonogramu, pokaż przycisk Start i ukryj Next Match
     startBtn.style.display = 'inline-block';
     nextMatchBtn.style.display = 'none';
     if (queue.length >= 2) {
