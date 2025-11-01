@@ -1,0 +1,17 @@
+[
+	{
+		"id": 1,
+		"task": "Przeglad kodu frontendu (src/) pod katem istniejacych funkcji dla auth i statystyk",
+			"status": "done"
+	},
+	{
+		"id": 2,
+		"task": "Dodac UI oraz logike frontendu dla logout/delete konta (GDPR)",
+		"status": "done"
+	},
+	{
+		"id": 3,
+		"task": "Rozszerzyc dashboard statystyk w UI",
+		"status": "done"
+	}
+]

@@ -24,6 +24,14 @@
       <option value="de">DE</option>
     </select>
   </label>
+  <div class="auth-bar" style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+    <button id="auth-login-btn" type="button" class="btn" style="display:none">Login with 42</button>
+    <div id="auth-user" style="display:none; align-items:center; gap:8px;">
+      <img id="auth-avatar" alt="avatar" width="22" height="22" style="border-radius:50%; display:none" />
+      <span id="auth-alias"></span>
+      <a href="/settings" data-link data-i18n="nav.settings">Settings</a>
+    </div>
+  </div>
       </nav>
       <div id="nav-desc" class="sr-only">Navigate between different sections of the Pong game</div>
       <h1>ATARI <span class=neon>PONG</span></h1>

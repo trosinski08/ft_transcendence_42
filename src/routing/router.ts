@@ -1,4 +1,5 @@
 import { sendLog_frontend } from '../elk_logs';
+import { getCurrentUser } from '../state/gameState';
 import { applyTranslations } from '../i18n/translations';
 import type { Lang } from '../i18n/translations';
 
@@ -34,6 +35,13 @@ export function showRoute(path: string) {
     } catch (e) {
       console.error('[nav] Error stopping game:', e);
     }
+  }
+
+  // Guarded routes: require login
+  const requiresAuth = path === '/tournament' || path === '/stats';
+  if (requiresAuth && !getCurrentUser()) {
+    // redirect to register without changing history here; return normalized path
+    path = '/register';
   }
 
   switch (path) {

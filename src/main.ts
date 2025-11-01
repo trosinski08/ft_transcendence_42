@@ -22,6 +22,9 @@ import * as effects from './game/effects';
 import * as aiControls from './game/aiControls';
 import * as settingsUi from './game/settingsUi';
 import { initAccountControls } from './ui/accountControls';
+import { getMe } from './apiClient';
+import { setCurrentUser, getCurrentUser } from './state/gameState';
+import type { CurrentUser } from './apiClient';
 // Note: avoid importing Node-only modules in browser bundle
 
 // --- ELK Logging ---
@@ -95,6 +98,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   setLanguage(currentLang);
   initAccountControls(() => currentLang);
+
+  // Wire auth login button
+  const loginBtn = document.getElementById('auth-login-btn');
+  if (loginBtn) {
+    loginBtn.addEventListener('click', () => { window.location.href = '/api/auth/42'; });
+  }
+  // Bootstrap auth state
+  bootstrapAuth();
 });
 
 const canvas = document.getElementById('game') as HTMLCanvasElement | null;
@@ -482,6 +493,46 @@ function defaultSettings(): Settings {
     theme: 'neon',
   };
 }
+
+// --- Auth banner ---
+function updateAuthBanner(user: CurrentUser | null) {
+  const loginBtn = document.getElementById('auth-login-btn') as HTMLButtonElement | null;
+  const userBox = document.getElementById('auth-user') as HTMLElement | null;
+  const aliasEl = document.getElementById('auth-alias') as HTMLElement | null;
+  const avatarEl = document.getElementById('auth-avatar') as HTMLImageElement | null;
+  if (!loginBtn && !userBox) return;
+  if (user) {
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (userBox) userBox.style.display = 'flex';
+    if (aliasEl) aliasEl.textContent = user.alias || user.intraLogin || 'Player';
+    if (avatarEl) {
+      if (user.avatar) {
+        avatarEl.src = user.avatar;
+        avatarEl.style.display = 'inline-block';
+      } else {
+        avatarEl.style.display = 'none';
+      }
+    }
+  } else {
+    if (userBox) userBox.style.display = 'none';
+    if (loginBtn) loginBtn.style.display = 'inline-block';
+  }
+}
+
+async function bootstrapAuth() {
+  try {
+    const me = await getMe();
+    setCurrentUser(me);
+    updateAuthBanner(me);
+  } catch (e) {
+    setCurrentUser(null);
+    updateAuthBanner(null);
+  }
+}
+
+// Expose for debugging
+;(window as any).updateAuthBanner = updateAuthBanner;
+;(window as any).bootstrapAuth = bootstrapAuth;
 function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -729,27 +780,9 @@ function applyPowerUp(type: PowerUpType, collector: 1|2) {
     }
     case 'POINT': {
       if (collector === 1) {
-        score1 += 1; updateScoreUI(); // Removed afterScoreUpdateObserver();
-        // if (score1 >= WIN_SCORE) {
-        //   const match = currentMatchIndex != null ? getSchedule()[currentMatchIndex] : null;
-        //   if (match) {
-        //     const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
-        //     winner = aliases[0];
-        //   } else {
-        //     winner = t(currentLang, 'game.player1');
-        //   }
-        // }
+        score1 += 1; updateScoreUI(); 
       } else {
-        score2 += 1; updateScoreUI(); // Removed afterScoreUpdateObserver();
-        // if (score2 >= WIN_SCORE) {
-        //   const match = currentMatchIndex != null ? getSchedule()[currentMatchIndex] : null;
-        //   if (match) {
-        //     const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
-        //     winner = aliases[1];
-        //   } else {
-        //     winner = t(currentLang, 'game.player2');
-        //   }
-        // }
+        score2 += 1; updateScoreUI(); 
       }
       showPuMsg('game.powerup.point');
       break;

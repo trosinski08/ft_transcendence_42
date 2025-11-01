@@ -6,13 +6,11 @@ import {
   fetchTournamentSchedule
 } from '../apiClient';
 
-// Import funkcji odświeżających UI
 import { updateTournamentView } from '../tournament/tournament';
-// Removed duplicate 'from' statement
-
 import {TournamentSchedule, Match, MatchUpdatePayload} from '../tournament/tournamentTypes';
 import { t } from '../i18n/translations';
 import { get } from 'http';
+import type { CurrentUser } from '../apiClient';
 
 export type Player = { id: string; alias: string };
 export type PlayerStats = { id: string; playerId: string; wins: number; losses: number; streak: number; rating: number };
@@ -21,11 +19,6 @@ export type ScheduleEntry = MatchEntry;
 
 let players: Player[] = [];
 
-/**
- * Mapuje identyfikatory graczy na aliasy/nazwy z backendu.
- * @param playerIds - tablica identyfikatorów graczy
- * @returns tablica aliasów/nazw graczy
- */
 export function mapPlayerAliases(playerIds: string[]): string[] {
   return playerIds.map(id => {
     const found = players.find(p => p.id === id);
@@ -187,10 +180,32 @@ export async function updateSchedule(matchId: string, status: 'pending' | 'playi
   }
 }
 
-// export async function updateSchedule(id: string, data: Partial<ScheduleEntry>) {
-//   await updateScheduleEntry(id, data);
-//   await syncScheduleFromBackend();
-// }
+let currentUser: CurrentUser | null = null;
+
+export function setCurrentUser(user: CurrentUser | null) {
+  currentUser = user;
+}
+
+export function getCurrentUser() {
+  return currentUser;
+}
+
+export function clearAllStateOnLogout() {
+  // Clear all local game/tournament state and user session
+  players = [];
+  queue = [];
+  schedule = [];
+  playerStats = [];
+  matchHistory = [];
+  tournamentSchedule = null;
+  currentMatchIndex = null;
+  currentMatchId = null;
+  currentUser = null;
+  // Inform UI to refresh views dependent on state
+  try { updateTournamentView(); } catch {}
+}
+
+
 export async function upsertStats(stats: PlayerStats) {
   await upsertPlayerStats(stats);
   await syncPlayerStatsFromBackend();

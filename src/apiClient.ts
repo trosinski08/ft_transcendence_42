@@ -95,3 +95,15 @@ export async function updateMatchStatus(matchId: string, status: string, winnerI
     body: JSON.stringify(payload)
   });
 }
+
+export type CurrentUser = { id: string; alias: string; intraLogin?: string; avatar?: string };
+export async function getMe(): Promise<CurrentUser | null> {
+  try {
+    return await request<CurrentUser>(`${API_URL}/users/me`, {
+      method: 'GET'}); 
+    } catch (err: any) {
+      if (err?.status == 401) return null;
+      throw err;
+    }
+}
+
