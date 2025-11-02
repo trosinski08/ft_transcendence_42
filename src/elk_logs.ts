@@ -1,6 +1,5 @@
 function sendLog_frontend(level: string, message: string, metadata?: any)
 {
-    console.error('trying to send log to Logstash:');
     fetch('/log-frontend',
     { 
         method: 'POST',
@@ -14,9 +13,6 @@ function sendLog_frontend(level: string, message: string, metadata?: any)
     }).catch(err => {
         console.error('Failed to send log to Logstash:', err, { level, message, metadata });
     });
-
-    console.error('message sent log to Logstash:');
-    console.error({ level, message, metadata });
 }
 
 export {sendLog_frontend};

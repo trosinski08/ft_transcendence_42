@@ -9,6 +9,41 @@ const { sendLogToLogstash } = require('./elk_logs');
 const PORT = Number(process.env.PORT || 8000);
 
 async function buildServer() {
+
+    fastify.addHook('onRequest', async (request, reply) => {
+    // attach start time for latency measurement
+    request.startTime = Date.now();
+    try {
+      sendLogToLogstash('INFO', 'Incoming request', {
+        eventType: 'request_start',
+        route: request.routerPath || request.url,
+        method: request.method,
+        // include minimal headers if helpful (avoid Authorization / cookies)
+        remoteAddress: request.ip
+      });
+    } catch (err) {
+      // don't break request flow if logging fails
+      fastify.log.warn('Failed to send start-log to Logstash', err);
+    }
+  });
+
+
+  fastify.addHook('onResponse', async (request, reply) => {
+    const durationMs = Date.now() - (request.startTime || Date.now());
+    try {
+      sendLogToLogstash('INFO', 'Request completed', {
+        eventType: 'request_end',
+        route: request.routerPath || request.url,
+        method: request.method,
+        statusCode: reply.statusCode,
+        durationMs,
+        userId: request.user && request.user.id ? request.user.id : undefined
+      });
+    } catch (err) {
+      fastify.log.warn('Failed to send end-log to Logstash', err);
+    }
+  });
+
   // CORS for local dev and nginx
   await fastify.register(cors, {
     origin: (origin, cb) => cb(null, true),

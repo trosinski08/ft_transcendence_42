@@ -25,42 +25,11 @@ import { initAccountControls } from './ui/accountControls';
 import { getMe } from './apiClient';
 import { setCurrentUser, getCurrentUser } from './state/gameState';
 import type { CurrentUser } from './apiClient';
+import { sendLog_frontend } from './elk_logs';
+
 // Note: avoid importing Node-only modules in browser bundle
 
-// --- ELK Logging ---
-async function sendLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, metadata?: Record<string, any>) {
-  // Only send logs in development/testing (avoid CORS in production)
-  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
-  // Local toggle: enable with localStorage.setItem('elk', 'on')
-  try {
-    if ((localStorage.getItem('elk') || 'off') !== 'on') return;
-  } catch {}
-  
-  try {
-    const sessionId = sessionStorage.getItem('sessionId') || (() => {
-      const id = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      try { sessionStorage.setItem('sessionId', id); } catch {}
-      return id;
-    })();
 
-    await fetch('http://localhost:8080', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        level,
-        message,
-        timestamp: new Date().toISOString(),
-        sessionId,
-        eventType: metadata?.eventType || 'general',
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        ...metadata
-      })
-    });
-  } catch (error) {
-  // Silently fail - logging should never break the app
-  }
-}
 // Utility functions moved to `src/utils`
 
 // Debug marker to confirm JS is executing in production
@@ -78,6 +47,8 @@ function detectInitialLang(): Lang {
   } catch {}
   return 'en';
 }
+
+
 let currentLang: Lang = detectInitialLang() || DEFAULT_LANG;
 function setLanguage(lang: Lang) {
   currentLang = lang;
@@ -88,6 +59,7 @@ function setLanguage(lang: Lang) {
   if (sel && sel.value !== lang) sel.value = lang;
 }
 document.addEventListener('DOMContentLoaded', () => {
+
   const sel = document.getElementById('lang-select') as HTMLSelectElement | null;
   if (sel) {
     sel.value = currentLang;
@@ -98,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   setLanguage(currentLang);
   initAccountControls(() => currentLang);
-
+  sendLog_frontend('INFO', 'App initialized after DOM load', { eventType: 'app_start', url: window.location.href, userAgent: navigator.userAgent });
   // Wire auth login button
   const loginBtn = document.getElementById('auth-login-btn');
   if (loginBtn) {
@@ -883,4 +855,14 @@ window.addEventListener('resize', () => {
   syncCanvasSize();
   // Optional: redraw game state on resize
   drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail, gameMode });
+});
+
+
+// Added: Global error handlers
+window.addEventListener('error', (event) => {
+  sendLog_frontend('ERROR', `Uncaught error: ${event.message}`, { eventType: 'global_error', filename: event.filename, lineno: event.lineno, colno: event.colno, stack: event.error?.stack });
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  sendLog_frontend('ERROR', 'Unhandled promise rejection', { eventType: 'unhandled_rejection', reason: event.reason, promise: event.promise });
 });

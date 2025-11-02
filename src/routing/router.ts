@@ -6,7 +6,7 @@ import type { Lang } from '../i18n/translations';
 let getLang: (() => Lang) | null = null;
 
 export function showRoute(path: string) {
-  try { console.log('[nav] showRoute ->', path); } catch {}
+  sendLog_frontend('INFO', `Displaying route: ${path}`, { eventType: 'route_display', path});
   const pages = {
     home: document.getElementById('home-page') as HTMLElement | null,
     register: document.getElementById('register-page') as HTMLElement | null,

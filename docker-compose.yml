@@ -71,8 +71,6 @@ services:
       - "5000:5000/udp"
       - "8085:8080" # Frontend logs HTTP input
       - "8081:8081"  # Backend logs HTTP input
-      - "8082:8082"  # Nginx logs HTTP input
-      - "8083:8083"  # Database logs HTTP input
     environment:
       - "LS_JAVA_OPTS=-Xms1g -Xmx1g"
     networks:
@@ -125,17 +123,8 @@ services:
 
         # Backend data view
         curl -X POST "http://kibana:5601/api/data_views/data_view" -H "kbn-xsrf: true" -H "Content-Type: application/json" -d "{\"data_view\": {\"title\": \"pong-backend-*\", \"name\": \"pong-backend\", \"timeFieldName\": \"@timestamp\"}}"
-
-        # Nginx data view
-        curl -X POST "http://kibana:5601/api/data_views/data_view" -H "kbn-xsrf: true" -H "Content-Type: application/json" -d "{\"data_view\": {\"title\": \"pong-nginx-*\", \"name\": \"pong-nginx\", \"timeFieldName\": \"@timestamp\"}}"
-
-        # Database data view
-        curl -X POST "http://kibana:5601/api/data_views/data_view" -H "kbn-xsrf: true" -H "Content-Type: application/json" -d "{\"data_view\": {\"title\": \"pong-database-*\", \"name\": \"pong-database\", \"timeFieldName\": \"@timestamp\"}}"
-
         echo "✅ Data views created successfully!"
       '
-
-
   grafana:
     image: grafana/grafana:latest
     container_name: pong-grafana
@@ -156,39 +145,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-
-  grafana-setup:
-    image: curlimages/curl:8.10.1
-    container_name: pong-grafana-setup
-    depends_on:
-      grafana:
-        condition: service_healthy
-    networks:
-      - elk-network
-    command: >
-      sh -c '
-        echo "Waiting for Grafana to be ready..." &&
-        sleep 20 &&
-        echo "Adding Elasticsearch datasource to Grafana..." &&
-        curl -X POST "http://grafana:3000/api/datasources" \
-          -H "Content-Type: application/json" \
-          -u admin:admin \
-          -d "{
-            \"name\": \"Elasticsearch\",
-            \"type\": \"elasticsearch\",
-            \"url\": \"http://elasticsearch:9200\",
-            \"access\": \"proxy\",
-            \"jsonData\": {
-              \"esVersion\": 80,
-              \"timeField\": \"@timestamp\",
-              \"index\": \"logstash-*\",
-              \"interval\": \"Daily\"
-            }
-          }" &&
-        echo "✅ Elasticsearch datasource added to Grafana!"
-      '
-
-
 
 networks:
   appnet:

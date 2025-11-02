@@ -1,5 +1,6 @@
 import { getCurrentMatch, updateSchedule } from '../../state/gameState';
 import { navigateTo } from '../../routing/router';
+import { sendLog_frontend } from '../../elk_logs';
 
 /**
  * Creates a controller for a requestAnimationFrame loop.
@@ -11,7 +12,10 @@ export function createRAFLoop(stepFn: () => void) {
 
   function loop() {
     if (!running) return;
-    try { stepFn(); } catch (e) { console.error('Error in game loop step', e); }
+    try { stepFn(); } catch (e) { 
+      console.error('Error in game loop step', e); 
+      sendLog_frontend('ERROR', 'Error in game loop step', { eventType: 'game_loop_error', error: e.message, stack: e.stack });
+}
     rafId = requestAnimationFrame(loop);
   }
 
@@ -19,6 +23,7 @@ export function createRAFLoop(stepFn: () => void) {
     start() {
       if (running) return;
       running = true;
+      sendLog_frontend('INFO', 'Game loop started', { eventType: 'game_loop_start' });
       rafId = requestAnimationFrame(loop);
     },
     stop() {
@@ -57,6 +62,7 @@ export function handleTournamentMatchEnd(
     // This is a tournament match that just ended
     const winnerNum = scores.score1 >= winScore ? 1 : 2;
     const winnerId = winnerNum === 1 ? tournamentMatch.p1Id : tournamentMatch.p2Id;
+    sendLog_frontend('INFO', 'Tournament match ended', { eventType: 'tournament_match_end', winnerNum, winnerId, scores, winScore });
 
     // Stop the game loop immediately
     loopController.stop();
@@ -81,6 +87,9 @@ export function handleTournamentMatchEnd(
   } else {
     // This is a regular (non-tournament) match that just ended
     const winnerNum = scores.score1 >= winScore ? 1 : 2;
+
+    sendLog_frontend('INFO', 'Regular match ended', { eventType: 'regular_match_end', winnerNum, scores, winScore });
+
     return { winner: winnerNum, handled: false }; // Indicate it was not a tournament match
   }
 }
