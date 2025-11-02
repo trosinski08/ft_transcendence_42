@@ -38,9 +38,21 @@ export function showRoute(path: string) {
   }
 
   // Guarded routes: require login
-  const requiresAuth = path === '/tournament' || path === '/stats';
-  if (requiresAuth && !getCurrentUser()) {
+  const requiresRegistration = path === '/tournament' || path === '/stats';
+  const hasAlias = typeof window !== 'undefined'
+  ? (() => {
+    try {
+      return !!localStorage.getItem('tournamentAlias');
+        } catch {
+          return false;
+    }
+  }) ()
+  : false;
+
+  if (requiresRegistration && !getCurrentUser() && !hasAlias) {
     // redirect to register without changing history here; return normalized path
+    console.log('[nav] User not logged in, redirecting to /register')
+    history.replaceState({}, '', '/register');
     path = '/register';
   }
 
@@ -64,9 +76,12 @@ export function showRoute(path: string) {
       if (pages.game) pages.game.classList.add('visible');
       // When entering the game view, sync UI with match context and ensure a clean start
       try {
-        (window as any).updateGameUIForMatchContext && (window as any).updateGameUIForMatchContext();
-        (window as any).resetMatch && (window as any).resetMatch();
-        (window as any).game && (window as any).game.ensureLoop && (window as any).game.ensureLoop();
+        const forced = localStorage.getItem('forceGameMode');
+        if (forced === 'local-ai') {
+          (window as any).updateGameUIForMatchContext && (window as any).updateGameUIForMatchContext();
+          (window as any).resetMatch && (window as any).resetMatch();
+          (window as any).game && (window as any).game.ensureLoop && (window as any).game.ensureLoop();
+        }
       } catch (e) {
         console.warn('[nav] Failed to prepare game view:', e);
       }
@@ -110,14 +125,21 @@ export function initRouter(langGetter: () => Lang) {
     if (a) {
       e.preventDefault();
       try { console.log('[nav] anchor click', a.getAttribute('href')); } catch {}
-      navigateTo(a.getAttribute('href') || '/');
-      return;
+      const href = (a.getAttribute('href') || '/');
+      if (href === '/game' || href ==='/play') {
+        try { localStorage.setItem('forceGameMode', 'local-ai'); } catch {}
+      }
+      navigateTo(href);
     }
     const btn = (target.closest && target.closest('[data-href]')) as HTMLButtonElement | null;
     if (btn) {
       e.preventDefault();
       try { console.log('[nav] button click', btn.getAttribute('data-href')); } catch {}
-      navigateTo(btn.getAttribute('data-href') || '/');
+      const bhref = btn.getAttribute('data-href') || '/';
+      if (bhref ==='/game' || bhref === '/play') {
+          try {localStorage.setItem('forceGameMode', 'local-ai'); } catch {}
+      }
+      navigateTo
     }
   });
 }

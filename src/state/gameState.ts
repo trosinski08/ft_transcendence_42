@@ -33,6 +33,235 @@ let tournamentSchedule: TournamentSchedule | null = null;
 export let currentMatchIndex: number | null = null;
 let currentMatchId: string | null = null;
 
+function loadBracketPlanFromStorage() {
+  if (typeof window === 'undefined') return;
+  if (bracketPlan) return;
+  const stored = window.localStorage?.getItem(BRACKET_PLAN_STORAGE_KEY);
+  if (!stored) return;
+  try {
+    bracketPlan = JSON.parse(stored) as BracketPlan;
+  } catch (err) {
+    console.warn('[gameState] Failed to parse stored bracket plan, clearing...', err);
+    bracketPlan = null;
+    try { window.localStorage.removeItem(BRACKET_PLAN_STORAGE_KEY); } catch {}
+  }
+}
+
+function persistBracketPlan() {
+  if (typeof window === 'undefined') return;
+  try {
+    if (!bracketPlan) {
+      window.localStorage.removeItem(BRACKET_PLAN_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(BRACKET_PLAN_STORAGE_KEY, JSON.stringify(bracketPlan));
+  } catch (err) {
+    console.warn('[gameState] Failed to persist bracket plan', err);
+  }
+}
+
+function setBracketPlan(plan: BracketPlan | null) {
+  bracketPlan = plan;
+  persistBracketPlan();
+}
+
+export function getBracketPlan(): BracketPlan | null {
+  if (!bracketPlan) loadBracketPlanFromStorage();
+  return bracketPlan;
+}
+
+export function clearBracketPlan() {
+  setBracketPlan(null);
+}
+
+function getPlanMatch(round: number, index: number): BracketMatchPlan | null {
+  const plan = getBracketPlan();
+  if (!plan) return null;
+  const roundMatches = plan[round - 1];
+  if (!roundMatches) return null;
+  return roundMatches[index] || null;
+}
+
+function resolveEntrant(entrant: BracketEntrant): string | null {
+  if (entrant.kind === 'player') return entrant.playerId;
+  const match = getPlanMatch(entrant.round, entrant.matchIndex);
+  return match?.winnerId || null;
+}
+
+function propagateAutoAdvances(plan: BracketPlan): boolean {
+  let changed = false;
+  for (const round of plan) {
+    for (const match of round) {
+      if (!match.autoAdvance) continue;
+      const p1Id = resolveEntrant(match.p1);
+      if (p1Id && match.winnerId !== p1Id) {
+        match.winnerId = p1Id;
+        changed = true;
+      }
+    }
+  }
+  if (changed) persistBracketPlan();
+  return changed;
+}
+
+function createBracketPlan(playerIds: string[]): BracketPlan {
+  const plan: BracketPlan = [];
+  let entrants: BracketEntrant[] = playerIds.map((playerId) => ({ kind: 'player', playerId }));
+  const N = entrants.length;
+  if (N < 2) return plan;
+
+  // Determine the preliminary round size so that after R1 we have power-of-two/2 entrants
+  const nextPow2 = (x: number) => { let p = 1; while (p < x) p <<= 1; return p; };
+  const K = nextPow2(N);
+  const targetAfterR1 = Math.max(2, K / 2);
+  const prelimMatches = Math.max(0, N - targetAfterR1);
+  let round = 1;
+
+  // Round 1 (preliminaries) — pair first 2*prelimMatches players; rest get byes to round 2
+  if (prelimMatches > 0) {
+    const matchesThisRound: BracketMatchPlan[] = [];
+    const prelimCount = prelimMatches * 2;
+    const nextRoundEntrants: BracketEntrant[] = [];
+    for (let i = 0; i < prelimCount; i += 2) {
+      const p1 = entrants[i];
+      const p2 = entrants[i + 1];
+      const match: BracketMatchPlan = {
+        round,
+        index: matchesThisRound.length,
+        p1,
+        p2,
+      };
+      matchesThisRound.push(match);
+      nextRoundEntrants.push({ kind: 'winner', round, matchIndex: match.index });
+    }
+    // Players with byes to round 2 (they keep their identity)
+    for (let i = prelimCount; i < entrants.length; i++) {
+      nextRoundEntrants.push(entrants[i]);
+    }
+    plan.push(matchesThisRound);
+    entrants = nextRoundEntrants;
+    round++;
+  }
+
+  // Subsequent rounds — pair sequentially, last one may auto-advance if odd
+  while (entrants.length > 1) {
+    const matchesThisRound: BracketMatchPlan[] = [];
+    const nextRoundEntrants: BracketEntrant[] = [];
+    for (let i = 0; i < entrants.length; i += 2) {
+      const p1 = entrants[i];
+      const p2 = entrants[i + 1] ?? null;
+      const match: BracketMatchPlan = {
+        round,
+        index: matchesThisRound.length,
+        p1,
+        p2,
+        autoAdvance: !p2,
+      };
+      matchesThisRound.push(match);
+      if (p2) {
+        nextRoundEntrants.push({ kind: 'winner', round, matchIndex: match.index });
+      } else {
+        nextRoundEntrants.push(p1); // bye propagates directly
+      }
+    }
+    plan.push(matchesThisRound);
+    entrants = nextRoundEntrants;
+    round++;
+  }
+
+  return plan;
+}
+
+async function schedulePendingBracketMatches(): Promise<boolean> {
+  const plan = getBracketPlan();
+  if (!plan) return false;
+  let created = false;
+
+  for (const round of plan) {
+    for (const match of round) {
+      if (match.autoAdvance || match.matchId) continue;
+      const p1Id = resolveEntrant(match.p1);
+      const p2Id = match.p2 ? resolveEntrant(match.p2) : null;
+      if (!p1Id || !p2Id) continue;
+      try {
+        const newMatch = await addScheduleEntry(p1Id, p2Id) as { id: string };
+        match.matchId = newMatch.id;
+        created = true;
+      } catch (err) {
+        console.error('[gameState] Failed to schedule match for bracket', { match, err });
+      }
+    }
+  }
+
+  if (created) persistBracketPlan();
+  return created;
+}
+
+function updatePlanWithSchedule(matches: Match[]) {
+  const plan = getBracketPlan();
+  if (!plan) return;
+  const matchMap = new Map(matches.map((m) => [m.id, m]));
+  let changed = false;
+  for (const round of plan) {
+    for (const match of round) {
+      if (!match.matchId) continue;
+      const linked = matchMap.get(match.matchId);
+      if (!linked) continue;
+      if (linked.winnerId && match.winnerId !== linked.winnerId) {
+        match.winnerId = linked.winnerId;
+        changed = true;
+      }
+    }
+  }
+  if (changed) persistBracketPlan();
+}
+
+async function processBracketState(): Promise<void> {
+  const plan = getBracketPlan();
+  if (!plan) return;
+  let changed = false;
+
+  while (true) {
+    const autoChanged = propagateAutoAdvances(plan);
+    const scheduled = await schedulePendingBracketMatches();
+    if (!autoChanged && !scheduled) break;
+    changed = true;
+  }
+
+  if (changed) {
+    await syncScheduleFromBackend();
+  }
+}
+
+export async function initializeTournamentBracket(playerIds: string[]): Promise<void> {
+  const plan = createBracketPlan(playerIds);
+  setBracketPlan(plan);
+  await processBracketState();
+}
+
+export async function progressBracketIfNeeded(): Promise<void> {
+  await processBracketState();
+}
+
+type BracketEntrant =
+  | { kind: 'player'; playerId: string }
+  | { kind: 'winner'; round: number; matchIndex: number };
+
+type BracketMatchPlan = {
+  round: number;
+  index: number;
+  p1: BracketEntrant;
+  p2: BracketEntrant | null;
+  matchId?: string;
+  winnerId?: string;
+  autoAdvance?: boolean;
+};
+
+type BracketPlan = BracketMatchPlan[][];
+
+const BRACKET_PLAN_STORAGE_KEY = 'tournamentBracketPlan';
+let bracketPlan: BracketPlan | null = null;
+
 export function setCurrentMatch(matchId: string | null) {
   currentMatchId = matchId;
   if (matchId && tournamentSchedule) {
@@ -82,8 +311,10 @@ export async function syncScheduleFromBackend() {
           matches: enrichedMatches,
           currentRound: 1
         };
+        updatePlanWithSchedule(enrichedMatches);
     } else {
       tournamentSchedule = null;
+      clearBracketPlan();
     }
 
     console.log('Tournament schedule state updated:', tournamentSchedule); // Zmieniony log dla jasności
@@ -173,6 +404,10 @@ export async function updateSchedule(matchId: string, status: 'pending' | 'playi
       schedule,
       playerStats
     });
+    if (status === 'completed') {
+      await progressBracketIfNeeded();
+      await recordChampionIfFinalCompleted();
+    }
     return true;
   } catch (error) {
     console.error(`[gameState] Error updating match ${matchId} status:`, error);
@@ -232,6 +467,7 @@ export function resetTournament() {
   matchHistory = [];
   currentMatchIndex = null;
   tournamentSchedule = null;
+  clearBracketPlan();
 }
 
 export async function resetTournamentWithBackend() {
@@ -250,6 +486,21 @@ export async function resetTournamentWithBackend() {
   currentMatchIndex = null;
   currentMatchId = null;
   tournamentSchedule = null;
+  clearBracketPlan();
+}
+
+export async function clearScheduleWithBackend() {
+  try {
+    await deleteAllSchedule();
+  } catch (err) {
+    console.error('[gameState] Failed to clear schedule from backend:', err);
+  }
+  schedule = [];
+  tournamentSchedule = null;
+  currentMatchIndex = null;
+  currentMatchId = null;
+  clearBracketPlan();
+  try { updateTournamentView(); } catch {}
 }
 
 export function getTournamentSchedule() {
@@ -264,4 +515,42 @@ export function setCurrentMatchIndex(index: number | null) {
   currentMatchIndex = index;
 }
 
+function getChampionIdFromPlan(): string | null {
+  const plan = getBracketPlan();
+  if (!plan || plan.length === 0) return null;
+  const last = plan[plan.length - 1];
+  if (!last || last.length !== 1) return null;
+  return last[0]?.winnerId || null;
+}
 
+async function recordChampionIfFinalCompleted(): Promise<void> {
+  const championId = getChampionIdFromPlan();
+  if (!championId) return;
+
+  const stats = getPlayerStats();
+  const existing = Array.isArray(stats) ? stats.find(s => s.playerId === championId) : undefined;
+
+  const payload = existing
+    ? { ...existing, wins: (existing.wins || 0) + 1, rating: (existing.rating || 1000) + 25 }
+    : { id: championId, playerId: championId, wins: 1, losses: 0, streak: 1, rating: 1025 };
+
+  try {
+    await upsertStats(payload as any);
+  } catch (e) {
+    console.warn('[gameState] Failed to record champion stats', e);
+  }
+}
+
+export async function clearPlayersWithBackend() {
+  try {
+    // TODO: jeśli masz endpoint backend (deleteAllPlayers), wywołaj go tutaj.
+    // await deleteAllPlayers();
+  } catch (e) {
+    console.warn('[gameState] Backend clear players not available, fallback to local reset', e);
+  }
+  try { localStorage.removeItem('tournamentAlias'); } catch {}
+  players = [];
+  queue = [];
+  await clearScheduleWithBackend();
+  try { updateTournamentView(); } catch {}
+}

@@ -444,3 +444,8 @@ body[data-theme='classic']{
 	--green: #d3d3d3;
 	--accent-orange: #ffffff;
 }
+
+#start-tournament { margin-right: 24px;}
+#new-tournament { margin-left: 24px;}
+#alias { margin-right: 24;}
+#join-tournament { margin-left: 24px;}
