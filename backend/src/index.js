@@ -27,6 +27,13 @@ async function buildServer() {
     if (exists) return reply.code(409).send({ error: 'Alias already exists' });
     return prisma.player.create({ data: { alias } });
   });
+  fastify.delete('/api/players', async () => {
+    await prisma.match.deleteMany({});
+    await prisma.queueEntry.deleteMany({});
+    await prisma.playerStats.deleteMany({});
+    await prisma.player.deleteMany({});
+    return { ok: true };
+  });
 
   // Queue
   fastify.get('/api/queue', async () =>

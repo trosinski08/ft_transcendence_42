@@ -34,6 +34,9 @@ export async function addPlayer(alias: string) {
     body: JSON.stringify({ alias })
   });
 }
+export async function deleteAllPlayers() {
+  return request(`${API_URL}/players`, { method: 'DELETE' });
+}
 export type ApiQueueEntry = { id: string; position: number; player: ApiPlayer; playerId: string };
 export async function fetchQueue(): Promise<ApiQueueEntry[]> { return request<ApiQueueEntry[]>(`${API_URL}/queue`); }
 export async function addQueueEntry(playerId: string) {

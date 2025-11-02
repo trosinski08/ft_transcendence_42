@@ -3,6 +3,7 @@ import {
   fetchQueue, addQueueEntry, removeQueueEntry,
   fetchSchedule, addScheduleEntry, updateScheduleEntry, deleteAllSchedule,
   fetchPlayerStats, upsertPlayerStats, updateMatchStatus,
+  deleteAllPlayers,
   fetchTournamentSchedule
 } from '../apiClient';
 
@@ -470,14 +471,22 @@ export function resetTournament() {
   clearBracketPlan();
 }
 
-export async function resetTournamentWithBackend() {
-  // Clear all matches from backend
+export async function resetTournamentWithBackend(): Promise<boolean> {
+  let backendResetOk = true;
   try {
-    await deleteAllSchedule();
+    await deleteAllPlayers();
   } catch (err) {
-    console.error('[gameState] Failed to delete schedule from backend:', err);
+    backendResetOk = false;
+    console.error('[gameState] Failed to delete players from backend:', err);
+    try {
+      await deleteAllSchedule();
+    } catch (fallbackErr) {
+      console.error('[gameState] Fallback schedule delete failed:', fallbackErr);
+    }
   }
-  // Clear local state
+
+  try { localStorage.removeItem('tournamentAlias'); } catch {}
+
   players = [];
   queue = [];
   schedule = [];
@@ -487,6 +496,13 @@ export async function resetTournamentWithBackend() {
   currentMatchId = null;
   tournamentSchedule = null;
   clearBracketPlan();
+
+  if (!backendResetOk) {
+    console.warn('[gameState] Tournament reset fell back to local state only; ensure backend cleanup when possible.');
+  }
+
+  try { updateTournamentView(); } catch {}
+  return backendResetOk;
 }
 
 export async function clearScheduleWithBackend() {
@@ -542,15 +558,5 @@ async function recordChampionIfFinalCompleted(): Promise<void> {
 }
 
 export async function clearPlayersWithBackend() {
-  try {
-    // TODO: call the backend deleteAllPlayers endpoint here once it exists.
-    // await deleteAllPlayers();
-  } catch (e) {
-    console.warn('[gameState] Backend clear players not available, fallback to local reset', e);
-  }
-  try { localStorage.removeItem('tournamentAlias'); } catch {}
-  players = [];
-  queue = [];
-  await clearScheduleWithBackend();
-  try { updateTournamentView(); } catch {}
+  await resetTournamentWithBackend();
 }
