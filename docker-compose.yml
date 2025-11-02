@@ -135,6 +135,61 @@ services:
         echo "✅ Data views created successfully!"
       '
 
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: pong-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - elk-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  grafana-setup:
+    image: curlimages/curl:8.10.1
+    container_name: pong-grafana-setup
+    depends_on:
+      grafana:
+        condition: service_healthy
+    networks:
+      - elk-network
+    command: >
+      sh -c '
+        echo "Waiting for Grafana to be ready..." &&
+        sleep 20 &&
+        echo "Adding Elasticsearch datasource to Grafana..." &&
+        curl -X POST "http://grafana:3000/api/datasources" \
+          -H "Content-Type: application/json" \
+          -u admin:admin \
+          -d "{
+            \"name\": \"Elasticsearch\",
+            \"type\": \"elasticsearch\",
+            \"url\": \"http://elasticsearch:9200\",
+            \"access\": \"proxy\",
+            \"jsonData\": {
+              \"esVersion\": 80,
+              \"timeField\": \"@timestamp\",
+              \"index\": \"logstash-*\",
+              \"interval\": \"Daily\"
+            }
+          }" &&
+        echo "✅ Elasticsearch datasource added to Grafana!"
+      '
+
+
+
 networks:
   appnet:
     driver: bridge
@@ -149,3 +204,5 @@ volumes:
   elasticsearch-data:
     driver: local
   db_data:
+  grafana-data:
+    driver: local

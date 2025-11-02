@@ -16,8 +16,8 @@ pnpm-debug.log*
 SUBJECT*
 
 # SSL certs (local only)
-nginx/ssl/server.key
-nginx/ssl/server.crt
+# nginx/ssl/server.key
+# nginx/ssl/server.crt
 
 
 *.local.md
