@@ -317,7 +317,7 @@ export async function syncScheduleFromBackend() {
       clearBracketPlan();
     }
 
-    console.log('Tournament schedule state updated:', tournamentSchedule); // Zmieniony log dla jasności
+    console.log('Tournament schedule state updated:', tournamentSchedule); // Clarified log message for visibility
     updateTournamentView();
     return true;
   } catch (error) {
@@ -337,7 +337,7 @@ export async function addPlayer(alias: string) {
   await syncQueueFromBackend();
   await syncScheduleFromBackend();
   await syncPlayerStatsFromBackend();
-  console.log('[gameState] addPlayer: synchronizacja zakończona', {
+  console.log('[gameState] addPlayer: sync completed', {
     players,
     queue,
     schedule,
@@ -350,7 +350,7 @@ export async function addToQueue(playerId: string) {
   await syncPlayersFromBackend();
   await syncScheduleFromBackend();
   await syncPlayerStatsFromBackend();
-  console.log('[gameState] addToQueue: synchronizacja zakończona', {
+  console.log('[gameState] addToQueue: sync completed', {
     players,
     queue,
     schedule,
@@ -363,7 +363,7 @@ export async function removeFromQueue(playerId: string) {
   await syncPlayersFromBackend();
   await syncScheduleFromBackend();
   await syncPlayerStatsFromBackend();
-  console.log('[gameState] removeFromQueue: synchronizacja zakończona', {
+  console.log('[gameState] removeFromQueue: sync completed', {
     players,
     queue,
     schedule,
@@ -376,7 +376,7 @@ export async function addSchedule(p1Id: string, p2Id: string) {
   await syncPlayersFromBackend();
   await syncQueueFromBackend();
   await syncPlayerStatsFromBackend();
-  console.log('[gameState] addSchedule: synchronizacja zakończona', {
+  console.log('[gameState] addSchedule: sync completed', {
     players,
     queue,
     schedule,
@@ -398,7 +398,7 @@ export async function updateSchedule(matchId: string, status: 'pending' | 'playi
     await syncPlayersFromBackend();
     await syncQueueFromBackend();
     await syncPlayerStatsFromBackend();
-    console.log('[gameState] updateSchedule: synchronizacja zakończona', {
+    console.log('[gameState] updateSchedule: sync completed', {
       players,
       queue,
       schedule,
@@ -543,7 +543,7 @@ async function recordChampionIfFinalCompleted(): Promise<void> {
 
 export async function clearPlayersWithBackend() {
   try {
-    // TODO: jeśli masz endpoint backend (deleteAllPlayers), wywołaj go tutaj.
+    // TODO: call the backend deleteAllPlayers endpoint here once it exists.
     // await deleteAllPlayers();
   } catch (e) {
     console.warn('[gameState] Backend clear players not available, fallback to local reset', e);

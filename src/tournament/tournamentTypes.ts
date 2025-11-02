@@ -1,7 +1,7 @@
 export type Player = {
   id: string;
   alias: string;
-  // Dodaj inne właściwości gracza, jeśli istnieją, np. score, wins, losses
+  // Add other player properties if they exist, e.g. score, wins, losses
 };
 export type PlayerStats = {
     id: string;
@@ -16,27 +16,27 @@ export type Match = {
   id: string;
   p1Id: string;
   p2Id: string;
-  player1Alias: string; // Zdenormalizowane dla łatwiejszego wyświetlania
-  player2Alias: string; // Zdenormalizowane dla łatwiejszego wyświetlania
-  status: 'pending' | 'playing' | 'completed'; // Zmieniono 'done' na 'completed'
+  player1Alias: string; // Denormalized for easier display
+  player2Alias: string; // Denormalized for easier display
+  status: 'pending' | 'playing' | 'completed'; // Match status
   winnerId: string | null;
-  score1: number | null; // Wynik dla player1
-  score2: number | null; // Wynik dla player2
-  round: number; // Która runda turnieju
-  matchNumber: number; // Numer meczu w rundzie
+  score1: number | null; // Score for player1
+  score2: number | null; // Score for player2
+  round: number; // Which tournament round
+  matchNumber: number; // Match number in the round
 };
 
 export type TournamentSchedule = {
-  id: string; // ID turnieju
+  id: string; // Tournament ID
   name: string;
   status: 'pending' | 'started' | 'completed';
-  players: Player[]; // Wszyscy gracze uczestniczący w turnieju
-  matches: Match[]; // Wygenerowany harmonogram meczów
+  players: Player[]; // All players participating in the tournament
+  matches: Match[]; // Generated schedule of matches
   currentRound: number;
-  // Dodaj inne właściwości turnieju, jeśli potrzebne
+  // Add other tournament properties if needed
 };
 
-// Typ dla aktualizacji meczu
+// Type for match update
 export type MatchUpdatePayload = {
   status?: 'pending' | 'playing' | 'completed';
   winnerId?: string;

@@ -197,7 +197,7 @@ export async function startNextScheduledMatch() {
   
   if (!schedule || !schedule.matches || schedule.matches.length === 0) {
     console.warn('[Tournament] No tournament schedule found or no matches.');
-    // renderMessage('No tournament schedule found or no matches.'); // Wyświetl komunikat użytkownikowi
+    // renderMessage('No tournament schedule found or no matches.'); // Surface the warning in UI when desired
     return;
   }
 
@@ -212,12 +212,12 @@ export async function startNextScheduledMatch() {
     if (nextMatch.status !== 'playing') {
       await updateSchedule(nextMatch.id, 'playing');
     }
-    await syncScheduleFromBackend(); // Odśwież harmonogram po aktualizacji
+    await syncScheduleFromBackend(); // Refresh the schedule after updating the status
     const updatedSchedule = getTournamentSchedule();
     const updatedMatchIndex = updatedSchedule?.matches.findIndex(m => m.id === nextMatch.id) || 0;
-    setCurrentMatchIndex(updatedMatchIndex); // Ustaw bieżący indeks meczu
-    setCurrentMatch(nextMatch.id); // Ustaw aktualny mecz dla kontekstu gry/UI
-    navigateTo('/game'); // Przekieruj do widoku gry
+    setCurrentMatchIndex(updatedMatchIndex); // Track the active match for navigation
+    setCurrentMatch(nextMatch.id); // Expose the current match for game and UI context
+    navigateTo('/game'); // Move the user into the game view
   } else {
     console.log('[Tournament] No playable matches found (neither pending nor playing). Tournament might be completed or not started.');
     // renderMessage('No pending matches found. Tournament might be completed or not started.');
@@ -225,7 +225,7 @@ export async function startNextScheduledMatch() {
 }
 
 export function initTournamentBindings() {
-  updateTournamentView(); // Wywołaj przy pierwszym załadowaniu
+  updateTournamentView(); // Populate initial data on the first load
   const registerForm = document.getElementById('register-form') as HTMLFormElement | null;
   if (registerForm) {
     registerForm.addEventListener('submit', async (ev) => {

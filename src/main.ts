@@ -164,7 +164,7 @@ let H = canvas?.height || 420;
     if (!p2a) return;
     if (enabled) p2a.textContent = t(currentLang, 'game.ai');
     else if (currentMatchIndex != null && getSchedule()[currentMatchIndex]) {
-      // Dynamiczne aliasy graczy
+      // Pull match-specific aliases when schedule provides them
       const match = getSchedule()[currentMatchIndex];
       const aliases = mapPlayerAliases([match.p1.id, match.p2.id]);
       p2a.textContent = aliases[1];
@@ -192,11 +192,11 @@ let H = canvas?.height || 420;
     if (s2) s2.textContent = String(score2);
     const next = document.getElementById('next-match');
   if (winner && next) next.textContent = `${winner}`;
-      // Aktualizuj aliasy po zmianie wyniku
-      // updateGameUIForMatchContext(); // Usunięto z tego miejsca, aby uniknąć nadmiarowych wywołań
+    // Keep alias labels in sync when the scoreboard changes
+    // updateGameUIForMatchContext(); // Disabled here to avoid redundant refreshes
   }
 // --- Tournament/game context UI updater ---
-// --- EKSPORTUJ TĘ FUNKCJĘ ---
+// --- Exported so tournament flow can refresh labels ---
 export function updateGameUIForMatchContext() {
   // Alias labels above scores
   const p1Label = document.getElementById('p1-alias-label');
@@ -255,7 +255,7 @@ export function updateGameUIForMatchContext() {
     if (!running)
         keys.clear();
     if (running) {
-      // Jeśli piłka stoi, nadaj jej prędkość startową
+      // If the ball is stationary, apply the initial velocity
       if (ball.vx === 0 && ball.vy === 0) {
         const direction = Math.random() < 0.5 ? 1 : -1;
         const vy = (Math.random() - 0.5) * BALL_INIT_SPEED_Y_RANGE;
@@ -305,7 +305,7 @@ export function updateGameUIForMatchContext() {
     if (gameMode === 'local') {
       // LOCAL: standard game loop
       // ...existing physics, scoring, powerup logic...
-      // (skopiuj logikę z powyżej, bez try/catch i obsługi turnieju)
+      // Mirror the core logic without try/catch or tournament handling
       const physicsParams = {
         W, H,
         ARENA_LEFT_X: ARENA.LEFT_X,
@@ -338,7 +338,7 @@ export function updateGameUIForMatchContext() {
       }
       drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail, gameMode });
     } else {
-      // TOURNAMENT: obsługa meczu turniejowego
+      // TOURNAMENT: handle scheduled tournament match
       const physicsParams = {
         W, H,
         ARENA_LEFT_X: ARENA.LEFT_X,
