@@ -316,9 +316,7 @@ export function initTournamentBindings() {
     newTourneyBtn.addEventListener('click', async () => {
       newTourneyBtn.setAttribute('disabled', 'true');
       try {
-        await clearScheduleWithBackend();
         await clearPlayersWithBackend();
-        try { localStorage.removeItem('tournamentAlias'); } catch {}
         try { (window as any).resetMatch && (window as any).resetMatch(); } catch {}
         await syncPlayersFromBackend();
         await syncQueueFromBackend();
