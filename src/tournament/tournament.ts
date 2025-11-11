@@ -5,13 +5,13 @@ import {
   getTournamentSchedule, addPlayer, addToQueue,
   updateSchedule, syncPlayersFromBackend,
   syncQueueFromBackend, syncScheduleFromBackend, syncPlayerStatsFromBackend,
-  resetTournamentWithBackend, setCurrentMatchIndex,
-  getCurrentMatch, setCurrentMatch, getPlayerAliasById, initializeTournamentBracket,
+  setCurrentMatchIndex,
+  getCurrentMatch, setCurrentMatch, initializeTournamentBracket,
   clearScheduleWithBackend, clearPlayersWithBackend
 } from '../state/gameState';
 import { navigateTo } from '../routing/router';
 import { validateAlias } from '../utils/validation';
-import { TournamentSchedule, Match, MatchUpdatePayload } from './tournamentTypes';
+import { getPlayerAliasById } from '../utils/playerHelpers';
 
 function sanitize(input: string): string {
   return input.replace(/[\u0000-\u001F<>]/g, '').replace(/\s+/g, ' ').trim();
@@ -196,7 +196,7 @@ export async function startNextScheduledMatch() {
   const schedule = getTournamentSchedule();
   
   if (!schedule || !schedule.matches || schedule.matches.length === 0) {
-    console.warn('[Tournament] No tournament schedule found or no matches.');
+    // No tournament schedule found or no matches to start
     // renderMessage('No tournament schedule found or no matches.'); // Surface the warning in UI when desired
     return;
   }
@@ -207,7 +207,6 @@ export async function startNextScheduledMatch() {
     schedule.matches.find(match => match.status === 'pending');
 
   if (nextMatch) {
-    console.log('[Tournament] Starting next match:', nextMatch);
     // If the match isn't already in 'playing', switch it now
     if (nextMatch.status !== 'playing') {
       await updateSchedule(nextMatch.id, 'playing');
@@ -219,7 +218,6 @@ export async function startNextScheduledMatch() {
     setCurrentMatch(nextMatch.id); // Expose the current match for game and UI context
     navigateTo('/game'); // Move the user into the game view
   } else {
-    console.log('[Tournament] No playable matches found (neither pending nor playing). Tournament might be completed or not started.');
     // renderMessage('No pending matches found. Tournament might be completed or not started.');
   }
 }
@@ -346,7 +344,6 @@ export function initTournamentPage() {
 }
 
 export function updateTournamentView() {
-  console.log('[UI] Updating entire tournament view...');
   updatePlayers();
   updateQueue();
   renderSchedule();

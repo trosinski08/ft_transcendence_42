@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const fastify = require('fastify')({ logger: true });
 const cors = require('@fastify/cors');
+const cookie = require('@fastify/cookie');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { sendLogToLogstash } = require('./elk_logs');
@@ -9,6 +10,10 @@ const { sendLogToLogstash } = require('./elk_logs');
 const PORT = Number(process.env.PORT || 8000);
 
 async function buildServer() {
+  // Plugins
+  await fastify.register(cookie, {
+    secret: process.env.COOKIE_SECRET || undefined
+  });
 
     fastify.addHook('onRequest', async (request, reply) => {
     // attach start time for latency measurement
@@ -17,6 +22,7 @@ async function buildServer() {
       sendLogToLogstash('INFO', 'Incoming request', {
         eventType: 'request_start',
         route: request.routerPath || request.url,
+        path: request.url,
         method: request.method,
         // include minimal headers if helpful (avoid Authorization / cookies)
         remoteAddress: request.ip
@@ -34,9 +40,11 @@ async function buildServer() {
       sendLogToLogstash('INFO', 'Request completed', {
         eventType: 'request_end',
         route: request.routerPath || request.url,
+        path: request.url,
         method: request.method,
         statusCode: reply.statusCode,
         durationMs,
+        responseTime: durationMs,
         userId: request.user && request.user.id ? request.user.id : undefined
       });
     } catch (err) {
@@ -60,7 +68,14 @@ async function buildServer() {
     if (!alias) return reply.code(400).send({ error: 'Alias required' });
     const exists = await prisma.player.findUnique({ where: { alias } });
     if (exists) return reply.code(409).send({ error: 'Alias already exists' });
-    return prisma.player.create({ data: { alias } });
+    const player = await prisma.player.create({ data: { alias } });
+    // create initial stats row
+    try {
+      await prisma.playerStats.create({ data: { playerId: player.id, wins: 0, losses: 0, streak: 0, rating: 1200 } });
+    } catch (e) {
+      fastify.log.warn({ e }, 'Failed to create initial player stats');
+    }
+    return player;
   });
   fastify.delete('/api/players', async () => {
     await prisma.match.deleteMany({});
@@ -119,14 +134,16 @@ async function buildServer() {
       });
       // Update player stats
       if (winnerId) {
-        await prisma.playerStats.updateMany({
+        await prisma.playerStats.upsert({
           where: { playerId: winnerId },
-          data: { wins: { increment: 1 } }
+          update: { wins: { increment: 1 } },
+          create: { playerId: winnerId, wins: 1, losses: 0, streak: 1, rating: 1200 }
         });
         const loserId = match.p1Id === winnerId ? match.p2Id : match.p1Id;
-        await prisma.playerStats.updateMany({
+        await prisma.playerStats.upsert({
           where: { playerId: loserId },
-          data: { losses: { increment: 1 } }
+          update: { losses: { increment: 1 } },
+          create: { playerId: loserId, wins: 0, losses: 1, streak: 0, rating: 1200 }
         });
       }
       reply.send(match);
@@ -176,6 +193,14 @@ async function buildServer() {
     reply.clearCookie('token', { path: '/' }).status(200).send({ message: 'Wylogowano' });
   });
 
+  // Current user info
+  fastify.get('/api/users/me', { preHandler: [authenticate] }, async (request, reply) => {
+    // return minimal user profile
+    const { id, alias } = request.user || {};
+    if (!id) return reply.status(401).send({ error: 'Brak autoryzacji' });
+    return { id, alias };
+  });
+
   // --- Nowy endpoint do usuwania konta ---
   fastify.delete('/api/users/me', { preHandler: [authenticate] }, async (request, reply) => {
     try {
@@ -200,3 +225,9 @@ buildServer()
     console.error(err);
     process.exit(1);
   });
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  try { await prisma.$disconnect(); } catch {}
+  process.exit(0);
+});

@@ -9,8 +9,6 @@ import {
 
 import { updateTournamentView } from '../tournament/tournament';
 import {TournamentSchedule, Match, MatchUpdatePayload} from '../tournament/tournamentTypes';
-import { t } from '../i18n/translations';
-import { get } from 'http';
 import type { CurrentUser } from '../apiClient';
 
 export type Player = { id: string; alias: string };
@@ -20,12 +18,7 @@ export type ScheduleEntry = MatchEntry;
 
 let players: Player[] = [];
 
-export function mapPlayerAliases(playerIds: string[]): string[] {
-  return playerIds.map(id => {
-    const found = players.find(p => p.id === id);
-    return found?.alias || 'unknown';
-  });
-}
+// mapPlayerAliases moved to utils/playerHelpers
 let queue: { id: string; position: number; player: Player; playerId: string }[] = [];
 let schedule: ScheduleEntry[] = [];
 let playerStats: PlayerStats[] = [];
@@ -277,12 +270,7 @@ export function getCurrentMatch() {
   return tournamentSchedule.matches.find(m => m.id === currentMatchId) || null;
 }
 
-export function getPlayerAliasById(playerId: string): string {
-  const players = getPlayers();
-  if (!Array.isArray(players)) return 'TBD';
-  const player = players.find(p => p.id === playerId);
-  return player ? player.alias : 'TBD';
-}
+// getPlayerAliasById moved to utils/playerHelpers
 
 export async function syncPlayersFromBackend() {
   players = await fetchPlayers();

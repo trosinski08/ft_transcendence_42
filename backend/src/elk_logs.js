@@ -1,7 +1,9 @@
 
+const LOGSTASH_URL = process.env.LOGSTASH_URL || 'http://logstash:8081';
+
 async function sendLogToLogstash(level, message, metadata = {}) {
   try {
-    const res = await fetch('http://pong-logstash:8081', {
+    const res = await fetch(LOGSTASH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -8,8 +8,9 @@ import {
   addPlayer, addToQueue, removeFromQueue, addSchedule, updateSchedule, upsertStats,
   syncPlayersFromBackend, syncQueueFromBackend, syncScheduleFromBackend, syncPlayerStatsFromBackend,
   loadState, resetTournament, currentMatchIndex,
-  getTournamentSchedule, mapPlayerAliases
+  getTournamentSchedule
 } from './state/gameState';
+import { mapPlayerAliases } from './utils/playerHelpers';
 import { initRouter, navigateTo } from './routing/router';
 import { keys, initInputHandlers } from './game/input';
 import * as physics from './game/physics/physics';

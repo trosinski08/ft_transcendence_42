@@ -1,3 +1,5 @@
+/* stylelint-disable at-rule-no-unknown */
+/* Tailwind directives are handled by PostCSS/Tailwind during build; disable the linter rule so editors/linters don't report an unknown at-rule. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

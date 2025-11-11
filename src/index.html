@@ -10,13 +10,13 @@
   <div id=ui>
     <header class=title role="banner">
       <nav class=main-nav role="navigation" aria-label="Main navigation">
-  <a href="/" data-link data-i18n="nav.home" aria-describedby="nav-desc">Home</a>
-  <a href="/register" data-link data-i18n="nav.register">Register</a>
-  <a href="/tournament" data-link data-i18n="nav.tournament">Tournament</a>
-  <a href="/game" data-link data-i18n="nav.play">Play</a>
-  <a href="/settings" data-link data-i18n="nav.settings">Settings</a>
-  <a href="/stats" data-link data-i18n="nav.stats">Stats</a>
-  <a href="/multiplayer" data-link data-i18n="nav.multiplayer">Multiplayer</a>
+  <a href="/" data-link data-i18n="nav.home" aria-describedby="nav-desc" class="text-neon hover:text-gold px-3 py-1 rounded-md border border-neon/20">Home</a>
+  <a href="/register" data-link data-i18n="nav.register" class="text-neon hover:text-gold px-3 py-1 rounded-md border border-neon/20">Register</a>
+  <a href="/tournament" data-link data-i18n="nav.tournament" class="text-neon hover:text-gold px-3 py-1 rounded-md border border-neon/20">Tournament</a>
+  <a href="/game" data-link data-i18n="nav.play" class="text-neon hover:text-gold px-3 py-1 rounded-md border border-neon/20">Play</a>
+  <a href="/settings" data-link data-i18n="nav.settings" class="text-neon hover:text-gold px-3 py-1 rounded-md border border-neon/20">Settings</a>
+  <a href="/stats" data-link data-i18n="nav.stats" class="text-neon hover:text-gold px-3 py-1 rounded-md border border-neon/20">Stats</a>
+  <a href="/multiplayer" data-link data-i18n="nav.multiplayer" class="text-neon hover:text-gold px-3 py-1 rounded-md border border-neon/20">Multiplayer</a>
   <label class="lang-picker"><span class="sr-only" data-i18n="lang.label">Language</span>
     <select id="lang-select" aria-label="Language selection">
       <option value="pl">PL</option>
@@ -25,10 +25,10 @@
     </select>
   </label>
   <div class="auth-bar" style="margin-left:auto; display:flex; align-items:center; gap:8px;">
-    <button id="auth-login-btn" type="button" class="btn" style="display:none">Login with 42</button>
+    <button id="auth-login-btn" type="button" class="btn px-3 py-1 rounded-md border border-neon/20 text-neon hover:text-gold hover:bg-neon/10" style="display:none">Login with 42</button>
     <div id="auth-user" style="display:none; align-items:center; gap:8px;">
       <img id="auth-avatar" alt="avatar" width="22" height="22" style="border-radius:50%; display:none" />
-      <span id="auth-alias"></span>
+  <span id="auth-alias" class="text-gold"></span>
       <a href="/settings" data-link data-i18n="nav.settings">Settings</a>
     </div>
   </div>
@@ -36,7 +36,7 @@
       <div id="nav-desc" class="sr-only">Navigate between different sections of the Pong game</div>
       <h1>ATARI <span class=neon>PONG</span></h1>
       <section class=scores role="region" aria-label="Game scores and tournament information">
-        <div class=player><span data-i18n="hdr.player1">PLAYER 1</span><br/><span id=score1 aria-label="Player 1 score">0</span></div>
+  <div class="player text-gold"><span data-i18n="hdr.player1">PLAYER 1</span><br/><span id=score1 aria-label="Player 1 score" class="text-neon drop-shadow-neon">0</span></div>
         <div>
           <h3 data-i18n="hdr.upcoming">Upcoming schedule</h3>
           <ol id="schedule-list" aria-label="Tournament schedule"></ol>
@@ -46,7 +46,7 @@
           <div id="bracket" role="region" aria-label="Tournament bracket"></div>
         </div>
         <div class=vs data-i18n="hdr.vs" aria-hidden="true">VS</div>
-        <div class=player><span data-i18n="hdr.player2">PLAYER 2</span><br/><span id=score2 aria-label="Player 2 score">0</span></div>
+  <div class="player text-gold"><span data-i18n="hdr.player2">PLAYER 2</span><br/><span id=score2 aria-label="Player 2 score" class="text-neon drop-shadow-neon">0</span></div>
       </section>
       <div class=stamp data-i18n="hdr.est">EST. 1972</div>
     </header>
@@ -167,9 +167,9 @@
         <h2 id="tournament-title" data-i18n="tour.title">Tournament</h2>
         <div role="group" aria-labelledby="tournament-actions">
           <h3 id="tournament-actions" class="sr-only">Tournament Actions</h3>
-          <button id=start-tournament data-i18n="tour.startNext" aria-describedby="start-help">Start Next Match</button>
+          <button id=start-tournament data-i18n="tour.startNext" aria-describedby="start-help" class="px-4 py-2 rounded-md border border-neon/30 text-neon hover:bg-neon/10">Start Next Match</button>
           <div id="start-help" class="sr-only">Begins the next scheduled tournament match</div>
-          <button id=new-tournament data-i18n="tour.new" aria-describedby="new-help">New Tournament</button>
+          <button id=new-tournament data-i18n="tour.new" aria-describedby="new-help" class="px-4 py-2 rounded-md border border-neon/30 text-neon hover:bg-neon/10">New Tournament</button>
           <div id="new-help" class="sr-only">Resets all players and starts a fresh tournament</div>
         </div>
         <div>
