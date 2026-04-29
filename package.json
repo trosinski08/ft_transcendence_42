@@ -7,7 +7,8 @@
     "start": "webpack serve --mode development --host 0.0.0.0 --port 3000",
     "dev": "webpack serve --mode development --hot",
     "build": "webpack --mode production",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.tests.json && node .tmp-test/tests/runner.js"
   },
   "devDependencies": {
     "@types/node": "^20.19.23",

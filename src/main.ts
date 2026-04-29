@@ -173,14 +173,11 @@ let H = canvas?.height || 420;
   }
 
   function setRunning(val: boolean) {
-  // ...existing code...
     if (winner) {
-  // ...existing code...
       return;
     }
     running = val;
     if (running) {
-      // Jeśli piłka stoi, nadaj jej prędkość startową
       if (ball.vx === 0 && ball.vy === 0) {
         const direction = Math.random() < 0.5 ? 1 : -1;
         const vy = (Math.random() - 0.5) * BALL_INIT_SPEED_Y_RANGE;
@@ -188,15 +185,12 @@ let H = canvas?.height || 420;
         ball.vy = vy;
       }
       firstStartShown = false;
-  // ...existing code...
     }
     updatePlayButtonUI();
     try {
       drawMain(ctx, { W, H, p1Y, p2Y, p1H, p2H, paddleW, ball, pickup, puMsg, winner, running, firstStartShown, currentLang, particles, ballTrail });
     } catch (e) {
-  // ...existing code...
     }
-  // ...existing code...
   }
 
   function toggleRunning() { setRunning(!running); }
@@ -250,7 +244,6 @@ let H = canvas?.height || 420;
         ball = physics.resetBall(W, H, BALL_INIT_SPEED_X, BALL_INIT_SPEED_Y_RANGE, BALL_RADIUS, (result.scored === 'left' ? 1 : -1));
         ball.vx = 0;
         ball.vy = 0;
-  // ...existing code...
         running = false;
         firstStartShown = true;
         if (result.scored === 'left') {
@@ -678,12 +671,10 @@ loopMain.start();
 // AI settings removed (revert)
 
 // Global error handling
-window.addEventListener('error', (event) => {
-  // ...existing code...
+window.addEventListener('error', () => {
 });
 
-window.addEventListener('unhandledrejection', (event) => {
-  // ...existing code...
+window.addEventListener('unhandledrejection', () => {
 });
 
 // Play/Pause button removed (revert)
@@ -705,7 +696,6 @@ function syncCanvasSize() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   W = logicalW;
   H = logicalH;
-  // ...existing code...
 }
 syncCanvasSize();
 

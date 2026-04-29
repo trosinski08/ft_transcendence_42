@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: backend
     volumes:
-      - db_data:/app/prisma # Wolumen do przechowywania pliku bazy danych SQLite (backend/prisma/dev.db)
+      - db_data:/app/prisma
     environment:
       - DATABASE_URL=file:/app/prisma/dev.db
     healthcheck:
