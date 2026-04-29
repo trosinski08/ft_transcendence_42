@@ -45,3 +45,4 @@ model PlayerStats {
   streak  Int
   rating  Int
 }
+
