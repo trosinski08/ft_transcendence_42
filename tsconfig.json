@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2018",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "ignoreDeprecations": "6.0",
     "esModuleInterop": true,
     "skipLibCheck": true,
