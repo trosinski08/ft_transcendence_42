@@ -33,10 +33,16 @@ jobs:
           set -euxo pipefail
           mkdir -p tmpssl
           openssl req -x509 -nodes -newkey rsa:2048 -keyout tmpssl/server.key -out tmpssl/server.crt -sha256 -days 1 -subj "/CN=localhost"
+
+          # Strip upstream proxy blocks so nginx starts without backend/logstash in CI.
+          # Production nginx/nginx.conf is kept intact — this is a CI-only derived config.
+          sed '/location \/api\//,/^  }/d; /location \/log-frontend/,/^  }/d' \
+            nginx/nginx.conf > /tmp/nginx.ci.conf
+
           echo "Starting nginx:1.27-alpine for CSP check..."
           docker run -d --name csp-test -p 9443:443 \
             -v "$PWD/dist":/usr/share/nginx/html:ro \
-            -v "$PWD/nginx/nginx.conf":/etc/nginx/conf.d/default.conf:ro \
+            -v /tmp/nginx.ci.conf:/etc/nginx/conf.d/default.conf:ro \
             -v "$PWD/tmpssl":/etc/nginx/ssl:ro \
             nginx:1.27-alpine
 
